@@ -7,30 +7,99 @@
 #include<cstdlib>
 #include<Windows.h>
 #include<wtypes.h>
-
+#include<array>
+#include<ctime>
 
 
 
 
 int main(){
 
-    MessageBox(NULL, "This is a developer tool for other developers, by using this you accept any and all liability to hardware or psyche. You have been warned", "DEVELOPERS TOOL ONLY", MB_OK);
 
-    char HidDeviceObject = "1915:EEE0" // Right Glove
+  //Opening warning Message window to Alert users of Experimental Code
+  char* WarningMB = "This is a developer tool for other developers by using this you accept any and all liability to hardware or psyche You have been warned";
+   char* title  =  "DEVELOPERS TOOL ONLY";
 
-    BOOLEAN HidD_GetPreparsedData(  // Not sure if this is working, needs preparsed data for getData function
-  [in]  HANDLE               HidDeviceObject,
-  [out] PHIDP_PREPARSED_DATA *PreparsedData
-);
-    printf("Please check your Right Glove is running data into this prompt \n");
+  LPCWSTR stringToWide(char* strarg) //Might have written this function wrong
+  {
 
-    if(!HidD_GetInputReport(HidDeviceObject, 01, 15)){ printf("ERROR NO GLOVE DETECTED, RESTART PROGRAM! \n"); return 1};
+    const char* strarg  //This is an AI generated block If you can make it simpler please do so
+int bufferSize = MultiByteToWideChar(CP_UTF8, 0, strarg, -1, nullptr, 0);
+wchar_t* wideArgument = new wchar_t[bufferSize];
+MultiByteToWideChar(CP_UTF8, 0, strarg, -1, wideArgument, bufferSize);
+// Now you can pass wideArgument as an LPCWSTR to the function or method
 
+      return wideArgument
+  };
+     LPCWSTR WideTitle = stringToWide(title);
+     LPCWSTR WideWarning = stringToWide(WarningMB);
+
+    MessageBox(NULL, WideWarning, WideTitle, MB_OK);
+
+        //-----------------------Functions for gloves
+
+        void delay(double milliseconds) {  //Some reason VScode wants a semicolon here
+    clock_t start_time = clock(); //grab local clock
+    while (clock() < start_time + milliseconds); //wait while local clock ticks
+    
+};
+
+    void PrintCapabilities(const PHIDP_CAPS& Caps){
+    std::cout << "Usage;" << Caps.Usage << std::endl;
+    std::cout << "UsagePage;" << Caps.UsagePage << std::endl;
+    std::cout << "InputReportByteLength;" << Caps.InputReportByteLength << std::endl;
+    std::cout << "OutputReportByteLength;" << Caps.OutputReportByteLength << std::endl;
+    std::cout << "FeatureReportByteLength;" << Caps.FeatureReportByteLength << std::endl;
+    std::cout << "Reserved[17]; internal HID use" << Caps.Reserved << std::endl;
+
+    std::cout << "NumberLinkCollectionNodes;" << Caps.NumberLinkCollectionNodes << std::endl;
+
+    std::cout << "NumberInputButtonCaps;" << Caps.NumberInputButtonCaps << std::endl;
+    std::cout << "NumberInputValueCaps;" << Caps.NumberInputValueCaps << std::endl;
+    std::cout << "NumberInputDataIndices;" << Caps.NumberInputDataIndices << std::endl;
+
+    std::cout << "NumberOutputButtonCaps;" << Caps.NumberOutputButtonCaps << std::endl;
+    std::cout << "NumberOutputValueCaps;" << Caps.NumberOutputValueCaps << std::endl;
+    std::cout << "NumberOutputDataIndices;" << Caps.NumberOutputDataIndices << std::endl;
+
+    std::cout << "NumberFeatureButtonCaps;" << Caps.NumberFeatureButtonCaps << std::endl;
+    std::cout << "NumberFeatureValueCaps;" << Caps.NumberFeatureValueCaps << std::endl;
+    std::cout << "NumberFeatureDataIndices;" << Caps.NumberFeatureDataIndices << std::endl;
+    };
+
+
+    HANDLE HidDeviceObject = "1915:EEE0" ;// Right Glove
+  PHIDP_PREPARSED_DATA PreparsedData;
+  PHIDP_CAPS           Capabilities;
+      void InitializeGlove(){
+        HidD_GetPreparsedData(HidDeviceObject, &PreparsedData); // Not sure if this is working, needs preparsed data for getData function
+      HidP_GetCaps(PreparsedData, Capabilities);
+    return PrintCapabilities(Capabilities);
+      };
+      
+    InitializeGlove();
+
+    
+
+
+  printf("Please check your Right Glove is running data into this prompt \n");
+      system("pause");
+
+
+    if(!HidD_GetInputReport(HidDeviceObject, 01, 15)){ 
+      printf("ERROR NO GLOVE DETECTED: Attempting to connect, if failing please RESTART PROGRAM! \n"); 
+      InitializeGlove(); 
+      if(!HidD_GetInputReport(HidDeviceObject, 01, 15)){ return 1;}
+      };
+    
 
     while(HidD_GetInputReport(HidDeviceObject, 01, 15)){ //If glove report exists lets see it
-        char data = HidP_GetData(HidP_Input, data, 15, &PreparsedData, 01, 15)
-    printf(&data); // sent to command prompt
-    delay(14.97) //Delay of 14.97 ms to achieve 67Hz
+        PHIDP_DATA DataList ;
+        HidP_GetData(HidP_Input,  DataList, 15, PreparsedData, 01, 15);
+        char data = 
+        printf("this is RAW BYTES \n");
+    printf(&data); // sent to command prompt----Change this to std::cout and run data inline
+    delay(14.97); //Delay of 14.97 ms to achieve 67Hz 
     };
     system("pause");
 
