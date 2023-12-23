@@ -8,16 +8,16 @@
 // Including code contributions by Jagrosh, https://github.com/jagrosh/Pulse2OpenGloves/blob/master/src/main.cpp Thanks mate
 
 
-#include<array>
+
 
 #include <iostream>
 #include <array>
 #include <thread>
 #include <chrono>
-
+#include<cstdio>
 // https://github.com/libusb/hidapi
 #include <hidapi.h>
-
+#include<fileapi.h>
 #include <windows.h> 
 
 
@@ -82,19 +82,27 @@ union HIDBuffer
 class Glove
 {
 public:
-    Glove(int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, m_wstring{}, m_buffer{},
-        m_ogPipe{CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr)} {}
+    Glove(int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, d_Buffer{}, m_wstring{}, m_buffer{},
+        m_ogPipe{ CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr) } {}
     virtual ~Glove() { hid_close(m_handle); }
 
     // true if the glove is connected
     const bool isValid() const { return m_handle; }
+
+    //Glove Functions
     const auto& read() { hid_read(m_handle, m_buffer.buffer, 25); return m_buffer; };
+    const auto& write(unsigned char* HapticData) { hid_write(m_handle, HapticData, 21); return HapticData; };
+
+    //OpenGlovesDriver Functions
+    const auto& Touch(LPVOID TrackingData) { WriteFile(m_ogPipe, TrackingData, 24, NULL, NULL); return TrackingData; };
+    const auto& Feel() { ReadFile(m_ogPipe, d_Buffer, 32, NULL, NULL); return d_Buffer; };
 
     // device info
     const std::string getManufacturer() { hid_get_manufacturer_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
     const std::string getProduct() { hid_get_product_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
     const std::string getSerialNumber() { hid_get_serial_number_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
     const std::string getIndexedString(const int i) { hid_get_indexed_string(m_handle, i, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
+    
 private:
     // connection to glove
     hid_device* m_handle;
@@ -104,6 +112,7 @@ private:
     // temp vars
     wchar_t m_wstring[MAX_STR];
     HIDBuffer m_buffer;
+    LPVOID d_Buffer;
 };
 
 
@@ -114,7 +123,7 @@ int main(int argc, char** argv)
 {
 
   //Opening warning Message window to Alert users of Experimental Code
-  char* WarningMB = "This is a developer tool for other developers by using this you accept any and all liability to hardware or psyche You have been warned";
+  char* WarningMB = "This is a developer tool for other developers by using this you accept any and all liability to hardware or psyche. You have been warned!";
    char* title  =  "DEVELOPERS TOOL ONLY";
 
   
@@ -165,21 +174,35 @@ int main(int argc, char** argv)
         LOG("Right Glove was not found!");
     }
 
-    // begin loop
+
+        //Init Pipe and Opengloves connection
+    printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
+    system("pause");
+    
+    
+
+    
+
+       
+    //FFB section-----------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+    // begin loop to run everything at 67hz
     bool exit = false;
     while (!exit)
     {
         if (left.isValid())
         {
+            //------Tracking
             const auto& buffer = left.read();
-            OpenGloveInputData ogid{};
-            // TODO: move data from buffer to ogid
-            // TODO: write ogid to named pipe
-        }
-
-        if (right.isValid())
-        {
-            const auto& buffer = right.read();
             OpenGloveInputData ogid{};
             // TODO: move data from buffer to ogid
             // TODO: write ogid to named pipe
@@ -188,10 +211,63 @@ int main(int argc, char** argv)
             printf("buffer: ");
             for (int i = 0; i < sizeof(buffer); i++)
                 printf("%d ", buffer.buffer[i]);
-            printf("\n");
+            printf("\r");
+
+            //------FFB
+            const auto& f_buffer = left.Feel();
+
+            printf("Force:");
+            
+                printf("%d ", f_buffer);
+            printf("\r");
+
+            //TODO: Parse f_buffer to learn the OpG data struct more clearly
+            //TODO: Apply math to each finger motor
+            //TODO: Collect each finger into an bytearray called HapticData
+
+            left.write(HapticData);
+         
+
+
         }
-        std::this_thread::sleep_for(std::chrono::microseconds(1000000 / 67)); // 67 hz
+
+        if (right.isValid())
+        {
+            //----Tracking
+            const auto& buffer = right.read();
+            OpenGloveInputData ogid{};
+            // TODO: move data from buffer to ogid
+            // TODO: write ogid to named pipe
+
+            // TODO: test code, remove later:----maybe... it looks pretty cool
+            printf("buffer: ");
+            for (int i = 0; i < sizeof(buffer); i++)
+                printf("%d ", buffer.buffer[i]);
+            printf("\r");
+
+
+            //----FFB
+
+
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(1000000 / 67)); // 67 hz  <-- This is really cool
+
+
+        //--------writing FFB Output Reports from the open pipe reading from Opengloves driver. Outputs are only triggered after sending input to the driver.
     }
+
+   
+
+
+
+
+
+
+
+
+
+
+
 
     // close the hidapi library
     hid_exit();
