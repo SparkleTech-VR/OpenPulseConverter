@@ -17,7 +17,7 @@
 #include<cstdio>
 // https://github.com/libusb/hidapi
 #include <hidapi.h>
-#include<fileapi.h>
+//#include<fileapi.h>
 #include <windows.h> 
 
 
@@ -72,6 +72,15 @@ typedef struct GloveInputReport
     FingerData thumb, index, middle, ring, pinky;
 } GloveInputReport;
 
+union OpGdata {
+    OpenGloveInputData OgInput; //some todos here about pulling the wanton variables out of the functions;
+
+    LPDWORD TrackingData_d;
+    
+
+
+};
+
 union HIDBuffer
 {
     GloveInputReport glove;
@@ -82,7 +91,7 @@ union HIDBuffer
 class Glove
 {
 public:
-    Glove(int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, d_Buffer{}, m_wstring{}, m_buffer{},
+    Glove(int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, d_Buffer{}, OpgData_buffer{}, m_wstring {}, m_buffer{},
         m_ogPipe{ CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr) } {}
     virtual ~Glove() { hid_close(m_handle); }
 
@@ -94,8 +103,8 @@ public:
     const auto& write(unsigned char* HapticData) { hid_write(m_handle, HapticData, 21); return HapticData; };
 
     //OpenGlovesDriver Functions
-    const auto& Touch(LPVOID TrackingData) { WriteFile(m_ogPipe, TrackingData, 24, NULL, NULL); return TrackingData; };
-    const auto& Feel() { ReadFile(m_ogPipe, d_Buffer, 32, NULL, NULL); return d_Buffer; };
+    const auto& Touch(LPVOID TrackingData) { WriteFile(m_ogPipe, TrackingData, 24, OpgData_buffer.TrackingData_d, NULL); return TrackingData; };
+    const auto& Feel() { ReadFile(m_ogPipe, d_Buffer, 32, OpgData_buffer.TrackingData_d, NULL); return d_Buffer; };
 
     // device info
     const std::string getManufacturer() { hid_get_manufacturer_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
@@ -113,6 +122,7 @@ private:
     wchar_t m_wstring[MAX_STR];
     HIDBuffer m_buffer;
     LPVOID d_Buffer;
+    OpGdata OpgData_buffer;
 };
 
 
@@ -132,7 +142,7 @@ int main(int argc, char** argv)
     MessageBox(NULL, WarningMB, title, MB_OK);
     system("pause");
 
-    LOG("Hello World! Beginning of JagRosh Contribution, thank you!");
+    LOG("Hello World! Beginning of JagRosh Contribution, thank you!"); //Maybe change to a general Contribution thank you
     system("pause");
     // initialize HID lib
     hid_init();
@@ -182,7 +192,8 @@ int main(int argc, char** argv)
     
 
     
-
+    LPVOID TrackingData; // make a variable for our data to get held in
+    unsigned char* HapticData;
        
     //FFB section-----------------------------------------------------------------------------------
 
@@ -191,7 +202,7 @@ int main(int argc, char** argv)
 
 
 
-
+    
 
 
 
@@ -205,7 +216,7 @@ int main(int argc, char** argv)
             const auto& buffer = left.read();
             OpenGloveInputData ogid{};
             // TODO: move data from buffer to ogid
-            // TODO: write ogid to named pipe
+            
 
             // TODO: test code, remove later:
             printf("buffer: ");
@@ -213,12 +224,15 @@ int main(int argc, char** argv)
                 printf("%d ", buffer.buffer[i]);
             printf("\r");
 
+            left.Touch(TrackingData); // TODO: write ogid to named pipe
+
+
             //------FFB
             const auto& f_buffer = left.Feel();
 
             printf("Force:");
             
-                printf("%d ", f_buffer);
+                printf("%d ", int(f_buffer));
             printf("\r");
 
             //TODO: Parse f_buffer to learn the OpG data struct more clearly

@@ -1,4 +1,6 @@
 ﻿  OpenPulseConverterSingleton.cpp
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(235,43): warning C4311: '<function-style-cast>': pointer truncation from 'const LPVOID' to 'int'
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(235,43): warning C4302: '<function-style-cast>': truncation from 'const LPVOID' to 'int'
 C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.29.30133\include\xstring(2541,23): warning C4244: 'argument': conversion from 'wchar_t' to 'const _Elem', possible loss of data
           with
           [
@@ -24,18 +26,22 @@ C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.
           [
               _Iter=wchar_t *
           ]
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(94): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(110): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
           with
           [
               _Elem=wchar_t,
               _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
               _Alloc=std::allocator<char>
           ]
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(94): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(110): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
           with
           [
               _Elem=wchar_t,
               _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
               _Alloc=std::allocator<char>
           ]
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(227): warning C4700: uninitialized local variable 'TrackingData' used
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(242): warning C4700: uninitialized local variable 'HapticData' used
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(103): warning C4172: returning address of local variable or temporary: HapticData
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(106): warning C4172: returning address of local variable or temporary: TrackingData
   OpenPulseConverter.vcxproj -> C:\Users\15054\Documents\GitHub\OpenPulseConverter\build\Debug\OpenPulseConverter.exe
