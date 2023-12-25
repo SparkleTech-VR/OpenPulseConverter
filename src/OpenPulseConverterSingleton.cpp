@@ -64,6 +64,10 @@ typedef struct FingerData
     unsigned char data[3];
     //unsigned int pull : 14;
     //unsigned int splay : 10;
+
+    // Extracting the real numbers
+    unsigned int pull = static_cast<unsigned int>(data[0] | (data[1] >> 2));
+    unsigned int splay = static_cast<unsigned int>((data[1] << 6) | data[2]);
 } FingerData;
 
 typedef struct GloveInputReport
@@ -100,11 +104,14 @@ public:
 
     //Glove Functions
     const auto& read() { hid_read(m_handle, m_buffer.buffer, 25); return m_buffer; };
-    const auto& write(unsigned char* HapticData) { hid_write(m_handle, HapticData, 21); return HapticData; };
+    const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
 
     //OpenGlovesDriver Functions
-    const auto& Touch(LPVOID TrackingData) { WriteFile(m_ogPipe, TrackingData, 24, OpgData_buffer.TrackingData_d, NULL); return TrackingData; };
     const auto& Feel() { ReadFile(m_ogPipe, d_Buffer, 32, OpgData_buffer.TrackingData_d, NULL); return d_Buffer; };
+    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, 24, OpgData_buffer.TrackingData_d, NULL); };
+   
+    
+    
 
     // device info
     const std::string getManufacturer() { hid_get_manufacturer_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
@@ -192,13 +199,12 @@ int main(int argc, char** argv)
     
 
     
-    LPVOID TrackingData; // make a variable for our data to get held in
-    unsigned char* HapticData;
+   // LPCVOID TrackingData; // make a variable for our data to get held in
+    //unsigned char* HapticData;
        
     //FFB section-----------------------------------------------------------------------------------
 
-
-
+    
 
 
 
@@ -207,16 +213,26 @@ int main(int argc, char** argv)
 
 
     // begin loop to run everything at 67hz
-    bool exit = false;
-    while (!exit)
+    
+    while (1)
     {
         if (left.isValid())
         {
             //------Tracking
             const auto& buffer = left.read();
+
+
+
+            
+                //Please just print the numbers I want
+
+                std::cout << "Pull: " << buffer.glove.thumb.pull << std::endl;
+                std::cout << "Splay: " << buffer.glove.thumb.splay << std::endl;
+            
+
             OpenGloveInputData ogid{};
             // TODO: move data from buffer to ogid
-            
+            //ogid.flexion = [buffer];// big type errors, it's mroe comlicated but I need it written at this point
 
             // TODO: test code, remove later:
             printf("buffer: ");
@@ -224,7 +240,9 @@ int main(int argc, char** argv)
                 printf("%d ", buffer.buffer[i]);
             printf("\r");
 
-            left.Touch(TrackingData); // TODO: write ogid to named pipe
+            //TrackingData = ogid;
+
+            //left.Touch(TrackingData); // TODO: write ogid to TrackingData
 
 
             //------FFB
@@ -232,14 +250,14 @@ int main(int argc, char** argv)
 
             printf("Force:");
             
-                printf("%d ", int(f_buffer));
+                
             printf("\r");
 
             //TODO: Parse f_buffer to learn the OpG data struct more clearly
             //TODO: Apply math to each finger motor
             //TODO: Collect each finger into an bytearray called HapticData
 
-            left.write(HapticData);
+            //left.write(HapticData);
          
 
 
@@ -249,6 +267,8 @@ int main(int argc, char** argv)
         {
             //----Tracking
             const auto& buffer = right.read();
+
+
             OpenGloveInputData ogid{};
             // TODO: move data from buffer to ogid
             // TODO: write ogid to named pipe
@@ -313,3 +333,24 @@ int main(int argc, char** argv)
 // "F" - Frequency of haptic vibration. Decimal
 // "G" - Duration of haptic vibration. Decimal
 // "H" - Amplitude of haptic vibration. Decimal
+
+
+
+//Notes to be deprecated---------------------
+
+
+/// <summary>
+/// FingerData finger;
+
+//finger.data[0] = 0xAB;
+//finger.data[1] = 0xCD;
+//finger.data[2] = 0xEF;
+
+// Extracting the real numbers
+//unsigned int pull = (finger.data[0] << 6) | (finger.data[1] >> 2);
+//u/nsigned int splay = ((finger.data[1] & 0x03) << 8) | finger.data[2];
+
+//std::cout << "Pull: " << pull << std::endl;
+//std::cout << "Splay: " << splay << std::endl;
+
+/// </summary>

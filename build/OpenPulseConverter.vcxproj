@@ -86,7 +86,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\15054\Documents\GitHub\OpenPulseConverter\dependencies\hidapi-win\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/dependencies/hidapi-win/include</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -114,7 +114,8 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <PostBuildEvent>
-      <Message></Message>
+      <Message>
+      </Message>
       <Command>setlocal
 "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E copy_if_different C:/Users/15054/Documents/GitHub/OpenPulseConverter/dependencies/hidapi-win/x64/hidapi.lib C:/Users/15054/Documents/GitHub/OpenPulseConverter/build/Debug
 if %errorlevel% neq 0 goto :cmEnd
@@ -169,7 +170,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <PostBuildEvent>
-      <Message></Message>
+      <Message>
+      </Message>
       <Command>setlocal
 "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E copy_if_different C:/Users/15054/Documents/GitHub/OpenPulseConverter/dependencies/hidapi-win/x64/hidapi.lib C:/Users/15054/Documents/GitHub/OpenPulseConverter/build/Release
 if %errorlevel% neq 0 goto :cmEnd
@@ -224,7 +226,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <PostBuildEvent>
-      <Message></Message>
+      <Message>
+      </Message>
       <Command>setlocal
 "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E copy_if_different C:/Users/15054/Documents/GitHub/OpenPulseConverter/dependencies/hidapi-win/x64/hidapi.lib C:/Users/15054/Documents/GitHub/OpenPulseConverter/build/MinSizeRel
 if %errorlevel% neq 0 goto :cmEnd
@@ -278,7 +281,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <PostBuildEvent>
-      <Message></Message>
+      <Message>
+      </Message>
       <Command>setlocal
 "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E copy_if_different C:/Users/15054/Documents/GitHub/OpenPulseConverter/dependencies/hidapi-win/x64/hidapi.lib C:/Users/15054/Documents/GitHub/OpenPulseConverter/build/RelWithDebInfo
 if %errorlevel% neq 0 goto :cmEnd
