@@ -19,7 +19,7 @@
 #include <hidapi.h>
 //#include<fileapi.h>
 #include <windows.h> 
-
+#include <cstring>
 
 
 
@@ -196,9 +196,11 @@ int main(int argc, char** argv)
     printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
     system("pause");
     
-    
-
-    
+    // Init Splay and Flex Init Tracking and Haptic Data
+    std::array<float, 5> splay;
+    std::array<std::array<float, 4>, 5> pull;
+    LPCVOID TrackingData;
+    unsigned char* HapticData;
    // LPCVOID TrackingData; // make a variable for our data to get held in
     //unsigned char* HapticData;
        
@@ -230,20 +232,38 @@ int main(int argc, char** argv)
                 std::cout << "Splay: " << buffer.glove.thumb.splay << std::endl;
             
 
-            OpenGloveInputData ogid{};
-            // TODO: move data from buffer to ogid
-            //ogid.flexion = [buffer];// big type errors, it's mroe comlicated but I need it written at this point
+                //Whatever I'm making the data structs
+                const std::array<float, 5> splay_buffer = [buffer.glove.thumb.splay, buffer.glove.index.splay, buffer.glove.middle.splay, buffer.glove.ring.splay, buffer.glove.pinky.splay];
+                const std::array<float, 5> pull_buffer = [buffer.glove.thumb.pull, buffer.glove.index.pull, buffer.glove.middle.pull, buffer.glove.ring.pull, buffer.glove.pinky.pull];
 
-            // TODO: test code, remove later:
-            printf("buffer: ");
-            for (int i = 0; i < sizeof(buffer); i++)
-                printf("%d ", buffer.buffer[i]);
-            printf("\r");
+                pull = [pull_buffer];
+                splay = [splay_buffer];
+                
 
-            //TrackingData = ogid;
+            
+            // TODO: move data from buffer to ogid 
+           
 
-            //left.Touch(TrackingData); // TODO: write ogid to TrackingData
 
+
+            // Convert OpenGloveInputData to LPCvoid
+            OpenGloveInputData ogid{ pull, splay }; // Assuming you have an instance of OpenGloveInputData
+
+            // Step 1: Create an LPCvoid pointer variable
+            // TrackingData; done above
+
+            // Step 2: Allocate memory for the LPCvoid pointer
+            TrackingData = malloc(sizeof(OpenGloveInputData));
+
+            // Step 3: Copy the data from the original structure to the allocated memory
+            memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
+
+            // Step 4: Cast the allocated memory to LPCvoid
+            LPCVOID convertedData = (LPCVOID)TrackingData;
+
+            left.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
+            
+            free((void*)TrackingData);// Dump the memory so we don't leak into the ram
 
             //------FFB
             const auto& f_buffer = left.Feel();
@@ -269,17 +289,32 @@ int main(int argc, char** argv)
             const auto& buffer = right.read();
 
 
-            OpenGloveInputData ogid{};
+           
             // TODO: move data from buffer to ogid
-            // TODO: write ogid to named pipe
-
-            // TODO: test code, remove later:----maybe... it looks pretty cool
-            printf("buffer: ");
-            for (int i = 0; i < sizeof(buffer); i++)
-                printf("%d ", buffer.buffer[i]);
-            printf("\r");
+            
+            pull = [buffer];
+            splay = [buffer];
 
 
+
+            // Convert OpenGloveInputData to LPCvoid
+            OpenGloveInputData ogid{ pull, splay }; // Assuming you have an instance of OpenGloveInputData
+
+            // Step 1: Create an LPCvoid pointer variable
+            // TrackingData; done above
+
+            // Step 2: Allocate memory for the LPCvoid pointer
+            TrackingData = malloc(sizeof(OpenGloveInputData));
+
+            // Step 3: Copy the data from the original structure to the allocated memory
+            memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
+
+            // Step 4: Cast the allocated memory to LPCvoid
+            LPCVOID convertedData = (LPCVOID)TrackingData;
+
+            left.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
+
+            free((void*)TrackingData);// Dump the memory so we don't leak into the ram
             //----FFB
 
 
