@@ -1,8 +1,5 @@
 
-// #include<hidusage.h>
-// #include<hidclass.h>
-// #include<hidsdi.h>
-// #include<hidpi.h>
+
 
 
 // Including code contributions by Jagrosh, https://github.com/jagrosh/Pulse2OpenGloves/blob/master/src/main.cpp Thanks mate
@@ -17,7 +14,7 @@
 #include<cstdio>
 // https://github.com/libusb/hidapi
 #include <hidapi.h>
-//#include<fileapi.h>
+
 #include <windows.h> 
 #include <cstring>
 
@@ -61,13 +58,18 @@ typedef struct OpenGloveInputData
 #pragma pack(push, 1)
 typedef struct FingerData
 {
+    unsigned int pull;
+    unsigned int splay;
     unsigned char data[3];
     //unsigned int pull : 14;
     //unsigned int splay : 10;
 
-    // Extracting the real numbers
-    unsigned int pull = static_cast<unsigned int>(data[0] | (data[1] >> 2));
-    unsigned int splay = static_cast<unsigned int>((data[1] << 6) | data[2]);
+    FingerData() {
+
+        // Extracting the real numbers
+        pull = static_cast<unsigned int>(data[0] | (data[1] >> 2));
+        splay = static_cast<unsigned int>((data[1] << 6) | data[2]);
+    }
 } FingerData;
 
 typedef struct GloveInputReport
@@ -77,7 +79,7 @@ typedef struct GloveInputReport
 } GloveInputReport;
 
 union OpGdata {
-    OpenGloveInputData OgInput; //some todos here about pulling the wanton variables out of the functions;
+    OpenGloveInputData OgInput; 
 
     LPDWORD TrackingData_d;
     
@@ -85,16 +87,7 @@ union OpGdata {
 
 };
 
-typedef struct OutputStructure {
-    int A;
-    int B;
-    int C;
-    int D;
-    int E;
-    float F;
-    float G;
-    float H;
-} OutputStructure;
+
 
 union HIDBuffer
 {
@@ -144,6 +137,17 @@ private:
     OpGdata OpgData_buffer;
 };
 
+//FFB section-----------------------------------------------------------------------------------
+typedef struct OutputStructure { //FFB output struct
+    int A;
+    int B;
+    int C;
+    int D;
+    int E;
+    float F;
+    float G;
+    float H;
+} OutputStructure;
 
 /*
  * Main function that runs upon execution
@@ -159,10 +163,10 @@ int main(int argc, char** argv)
      
 
     MessageBox(NULL, WarningMB, title, MB_OK);
-    system("pause");
+    
 
-    LOG("Hello World! \n This is the OpenPulse Converter, a simple tool to send tracking and haptic data between Bifrost Pulse Gloves and OpenGloves Driver. \n This is a community development from the Pulse Discord. \n Please thank Jagrosh, KingOfDranovis, and Sheridan in the discord when you see them. \n Thank you for using this tool, you are part of an Awesome Club!");
-   
+   printf("Hello World! \n This is the OpenPulse Converter, a simple tool to send tracking and haptic data between Bifrost Pulse Gloves and OpenGloves Driver. \n This is a community development from the Pulse Discord. \n Please thank Jagrosh, KingOfDranovis, and Sheridan in the discord when you see them. \n Thank you for using this tool, you are part of an Awesome Club! \n PLEASE TURN ON YOUR GLOVES! \n");
+    system("pause");
     // initialize HID lib
     hid_init();
 
@@ -217,8 +221,8 @@ int main(int argc, char** argv)
     
     unsigned char report[21]; // Output Report Variable HID api 
 
-    //FFB section-----------------------------------------------------------------------------------
-
+    
+    //Below this line is only for runtime code; all startup code should be above this line-----------------------------------------------------
     
 
 
@@ -239,22 +243,38 @@ int main(int argc, char** argv)
 
 
             
-                //Please just print the numbers I want. Found out that it's not the numbers we need
+                //test code to confirm we are getting the data we want
 
-                std::cout << "Pull: " << buffer.glove.thumb.pull << std::endl;
-                std::cout << "Splay: " << buffer.glove.thumb.splay << std::endl;
+                std::cout << "Pull: " << buffer.glove.index.pull << std::endl;
+                std::cout << "Splay: " << buffer.glove.index.splay << std::endl;
             
 
-                //Whatever I'm making the data structs
-                const std::array<float, 5> splay_buffer = [buffer.glove.thumb.splay, buffer.glove.index.splay, buffer.glove.middle.splay, buffer.glove.ring.splay, buffer.glove.pinky.splay];
-                const std::array<float, 5> pull_buffer = [buffer.glove.thumb.pull, buffer.glove.index.pull, buffer.glove.middle.pull, buffer.glove.ring.pull, buffer.glove.pinky.pull];
+                //The data structs for our finger buffer data
 
-                pull = [pull_buffer];
-                splay = [splay_buffer];
+                // Create std::array for splay_buffer
+                const std::array<float, 5> splay_buffer = {
+                    static_cast<float>(buffer.glove.thumb.splay),
+                    static_cast<float>(buffer.glove.index.splay),
+                    static_cast<float>(buffer.glove.middle.splay),
+                    static_cast<float>(buffer.glove.ring.splay),
+                    static_cast<float>(buffer.glove.pinky.splay)
+                };
+
+
+                // Create std::array for pull_buffer
+                const std::array < std::array < float, 4 >, 5 > pull_buffer = {
+                    static_cast<float>(buffer.glove.thumb.pull),
+                    static_cast<float>(buffer.glove.index.pull),
+                    static_cast<float>(buffer.glove.middle.pull),
+                    static_cast<float>(buffer.glove.ring.pull),
+                    static_cast<float>(buffer.glove.pinky.pull)
+                };
                 
+                splay = splay_buffer; //Semantics for readability -- no impact on performance
+                pull = pull_buffer;
 
             
-            // TODO: move data from buffer to ogid 
+            // TODO: move data from buffer to ogid -- DONE
            
 
 
@@ -381,10 +401,7 @@ int main(int argc, char** argv)
 
             printf("\r");
 
-            //TODO: Parse f_buffer to learn the OpG data struct more clearly
-            //TODO: Apply math to each finger motor
-            //TODO: Collect each finger into an bytearray called HapticData
-
+            
             left.write(HapticData);
          
 
@@ -397,12 +414,39 @@ int main(int argc, char** argv)
             const auto& buffer = right.read();
 
 
-           
-            // TODO: move data from buffer to ogid
-            
-            pull = [buffer];
-            splay = [buffer];
 
+            //test code to confirm we are getting the data we want
+
+            std::cout << "Pull: " << buffer.glove.index.pull << std::endl;
+            std::cout << "Splay: " << buffer.glove.index.splay << std::endl;
+
+
+            //The data structs for our finger buffer data
+
+            // Create std::array for splay_buffer
+            const std::array<float, 5> splay_buffer = {
+                static_cast<float>(buffer.glove.thumb.splay),
+                static_cast<float>(buffer.glove.index.splay),
+                static_cast<float>(buffer.glove.middle.splay),
+                static_cast<float>(buffer.glove.ring.splay),
+                static_cast<float>(buffer.glove.pinky.splay)
+            };
+
+
+            // Create std::array for pull_buffer
+            const std::array < std::array < float, 4 >, 5 > pull_buffer = {
+                static_cast<float>(buffer.glove.thumb.pull),
+                static_cast<float>(buffer.glove.index.pull),
+                static_cast<float>(buffer.glove.middle.pull),
+                static_cast<float>(buffer.glove.ring.pull),
+                static_cast<float>(buffer.glove.pinky.pull)
+            };
+
+            splay = splay_buffer; //Semantics for readability -- no impact on performance
+            pull = pull_buffer;
+
+
+            // TODO: move data from buffer to ogid -- DONE
 
 
             // Convert OpenGloveInputData to LPCvoid
@@ -420,7 +464,7 @@ int main(int argc, char** argv)
             // Step 4: Cast the allocated memory to LPCvoid
             LPCVOID convertedData = (LPCVOID)TrackingData;
 
-            left.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
+            right.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
 
             free((void*)TrackingData);// Dump the memory so we don't leak into the ram
 
@@ -531,11 +575,9 @@ int main(int argc, char** argv)
 
             printf("\r");
 
-            //TODO: Parse f_buffer to learn the OpG data struct more clearly
-            //TODO: Apply math to each finger motor
-            //TODO: Collect each finger into an bytearray called HapticData
+            
 
-            left.write(HapticData);
+            right.write(HapticData);
 
 
 
