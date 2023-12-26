@@ -149,8 +149,8 @@ int main(int argc, char** argv)
     MessageBox(NULL, WarningMB, title, MB_OK);
     system("pause");
 
-    LOG("Hello World! Beginning of JagRosh Contribution, thank you!"); //Maybe change to a general Contribution thank you
-    system("pause");
+    LOG("Hello World! \n This is the OpenPulse Converter, a simple tool to send tracking and haptic data between Bifrost Pulse Gloves and OpenGloves Driver. \n This is a community development from the Pulse Discord. \n Please thank Jagrosh, KingOfDranovis, and Sheridan in the discord when you see them. \n Thank you for using this tool, you are part of an Awesome Club!");
+   
     // initialize HID lib
     hid_init();
 
@@ -224,7 +224,7 @@ int main(int argc, char** argv)
 
 
             
-                //Please just print the numbers I want
+                //Please just print the numbers I want. Found out that it's not the numbers we need
 
                 std::cout << "Pull: " << buffer.glove.thumb.pull << std::endl;
                 std::cout << "Splay: " << buffer.glove.thumb.splay << std::endl;
