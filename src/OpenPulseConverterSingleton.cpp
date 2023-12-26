@@ -111,7 +111,7 @@ public:
     const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { ReadFile(m_ogPipe, d_Buffer, 32, OpgData_buffer.TrackingData_d, NULL); return d_Buffer; };
+    const auto& Feel() {  ReadFile(m_ogPipe, d_Buffer, 32, OpgData_buffer.TrackingData_d, NULL); return d_Buffer;};
     const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, 24, OpgData_buffer.TrackingData_d, NULL); };
    
     //Data Functions cause it's neater to shove them here
@@ -232,8 +232,8 @@ int main(int argc, char** argv)
 
 
     // begin loop to run everything at 67hz
-    
-    while (1)
+    bool quit = false;
+    while (!quit)
     {
         if (left.isValid())
         {
@@ -301,108 +301,113 @@ int main(int argc, char** argv)
             //------FFB
             const auto& f_buffer = left.Feel();
 
-            printf("Force:");
+            
             
             
 
            
 
-            // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
+            if (f_buffer) {//Check if we are receiving force
+
+                printf("%p", f_buffer);
+
+                // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
             // 
             // Convert LPVOID to OutputStructure
-             f_buffer; // Assuming you have the LPVOID input data
+                f_buffer; // Assuming you have the LPVOID input data
 
-            // Step 1: Cast the LPVOID to the appropriate structure type
-            OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
+                // Step 1: Cast the LPVOID to the appropriate structure type
+                OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
 
-            // Step 2: Access the fields of the structure
-            int thumbForceFeedback = outputData->A;
-            int indexForceFeedback = outputData->B;
-            int middleForceFeedback = outputData->C;
-            int ringForceFeedback = outputData->D;
-            int pinkyForceFeedback = outputData->E;
-            float frequency = outputData->F;
-            float duration = outputData->G;//Not used by Pulse 
-            float amplitude = outputData->H;
+                // Step 2: Access the fields of the structure
+                int thumbForceFeedback = outputData->A;
+                int indexForceFeedback = outputData->B;
+                int middleForceFeedback = outputData->C;
+                int ringForceFeedback = outputData->D;
+                int pinkyForceFeedback = outputData->E;
+                float frequency = outputData->F;
+                float duration = outputData->G;//Not used by Pulse 
+                float amplitude = outputData->H;
 
-            // Now you have the output structure with the extracted values
-
-
-            //Let's manipulate them with math to get data points the glove understands
-
-            // Bytes 2 and 3 are easy math
-            int convertedFreq = frequency * 255; //Byte 3
-            int convertedAmp = amplitude * 255; // Byte 2
-
-            // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
-            // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
-
-            // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
-            // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
-
-            int convertedThumb = left.HapticConvert(thumbForceFeedback);
-            int convertedIndex = left.HapticConvert(indexForceFeedback);
-            int convertedMiddle = left.HapticConvert(middleForceFeedback);
-            int convertedRing = left.HapticConvert(ringForceFeedback);
-            int convertedPinky = left.HapticConvert(pinkyForceFeedback);
-
-            //We are going to use a naming convention to align our bytes easier
-
-            int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
-            int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
-            int index0 = convertedIndex - 64;
-            int index1 = convertedIndex - 127;
-            int middle0 = convertedMiddle - 64;
-            int middle1 = convertedMiddle - 127;
-            int ring0 = convertedRing - 64;
-            int ring1 = convertedRing - 127;
-            int pinky0 = convertedPinky - 64;
-            int pinky1 = convertedPinky - 127;
-
-            // Output Report Creator
-
-            report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
-
-            //Convert and store the data into the rest of the report
-
-            // Thumb force feedback (A)
-            report[1] = thumb0 & 0xFF;
-            report[2] = thumb1 & 0xFF;
-            report[3] = convertedAmp & 0xFF;
-            report[4] = convertedFreq & 0xFF;
-            // Index force feedback (B)
-            report[5] = index0 & 0xFF;
-            report[6] = index1 & 0xFF;
-            report[7] = convertedAmp & 0xFF;
-            report[8] = convertedFreq & 0xFF;
-
-            // Middle force feedback (C)
-            report[9] = middle0 & 0xFF;
-            report[10] = middle1 & 0xFF;
-            report[11] = convertedAmp & 0xFF;
-            report[12] = convertedFreq & 0xFF;
-            // Ring force feedback (D)
-            report[13] = ring0 & 0xFF;
-            report[14] = ring1 & 0xFF; 
-            report[15] = convertedAmp & 0xFF;
-            report[16] = convertedFreq & 0xFF;
-            // Pinky force feedback (E)
-            report[17] = pinky0 & 0xFF;
-            report[18] = pinky1 & 0xFF;
-            report[19] = convertedAmp & 0xFF;
-            report[20] = convertedFreq & 0xFF;
-            
+                // Now you have the output structure with the extracted values
 
 
-            
-             HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
-            
-             printf("%c", HapticData);
+                //Let's manipulate them with math to get data points the glove understands
 
-            printf("\r");
+                // Bytes 2 and 3 are easy math
+                int convertedFreq = frequency * 255; //Byte 3
+                int convertedAmp = amplitude * 255; // Byte 2
 
-            
-            left.write(HapticData);
+                // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
+                // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
+
+                // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
+                // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
+
+                int convertedThumb = left.HapticConvert(thumbForceFeedback);
+                int convertedIndex = left.HapticConvert(indexForceFeedback);
+                int convertedMiddle = left.HapticConvert(middleForceFeedback);
+                int convertedRing = left.HapticConvert(ringForceFeedback);
+                int convertedPinky = left.HapticConvert(pinkyForceFeedback);
+
+                //We are going to use a naming convention to align our bytes easier
+
+                int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
+                int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
+                int index0 = convertedIndex - 64;
+                int index1 = convertedIndex - 127;
+                int middle0 = convertedMiddle - 64;
+                int middle1 = convertedMiddle - 127;
+                int ring0 = convertedRing - 64;
+                int ring1 = convertedRing - 127;
+                int pinky0 = convertedPinky - 64;
+                int pinky1 = convertedPinky - 127;
+
+                // Output Report Creator
+
+                report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
+
+                //Convert and store the data into the rest of the report
+
+                // Thumb force feedback (A)
+                report[1] = thumb0 & 0xFF;
+                report[2] = thumb1 & 0xFF;
+                report[3] = convertedAmp & 0xFF;
+                report[4] = convertedFreq & 0xFF;
+                // Index force feedback (B)
+                report[5] = index0 & 0xFF;
+                report[6] = index1 & 0xFF;
+                report[7] = convertedAmp & 0xFF;
+                report[8] = convertedFreq & 0xFF;
+
+                // Middle force feedback (C)
+                report[9] = middle0 & 0xFF;
+                report[10] = middle1 & 0xFF;
+                report[11] = convertedAmp & 0xFF;
+                report[12] = convertedFreq & 0xFF;
+                // Ring force feedback (D)
+                report[13] = ring0 & 0xFF;
+                report[14] = ring1 & 0xFF;
+                report[15] = convertedAmp & 0xFF;
+                report[16] = convertedFreq & 0xFF;
+                // Pinky force feedback (E)
+                report[17] = pinky0 & 0xFF;
+                report[18] = pinky1 & 0xFF;
+                report[19] = convertedAmp & 0xFF;
+                report[20] = convertedFreq & 0xFF;
+
+                printf("Force:");
+
+
+                HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
+
+                printf("%p", HapticData);
+
+                printf("\r");
+
+
+                left.write(HapticData);
+            };
          
 
 
@@ -475,109 +480,112 @@ int main(int argc, char** argv)
             //----FFB
             const auto& f_buffer = right.Feel();
 
-            printf("Force:");
+            if (f_buffer) { //check if we are receiving feedback
+
+                
+                printf("%p", f_buffer);
 
 
 
 
+                // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
+                // 
+                // Convert LPVOID to OutputStructure
+                f_buffer; // Assuming you have the LPVOID input data
 
-            // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
-            // 
-            // Convert LPVOID to OutputStructure
-            f_buffer; // Assuming you have the LPVOID input data
+                // Step 1: Cast the LPVOID to the appropriate structure type
+                OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
 
-            // Step 1: Cast the LPVOID to the appropriate structure type
-            OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
+                // Step 2: Access the fields of the structure
+                int thumbForceFeedback = outputData->A;
+                int indexForceFeedback = outputData->B;
+                int middleForceFeedback = outputData->C;
+                int ringForceFeedback = outputData->D;
+                int pinkyForceFeedback = outputData->E;
+                float frequency = outputData->F;
+                float duration = outputData->G;//Not used by Pulse 
+                float amplitude = outputData->H;
 
-            // Step 2: Access the fields of the structure
-            int thumbForceFeedback = outputData->A;
-            int indexForceFeedback = outputData->B;
-            int middleForceFeedback = outputData->C;
-            int ringForceFeedback = outputData->D;
-            int pinkyForceFeedback = outputData->E;
-            float frequency = outputData->F;
-            float duration = outputData->G;//Not used by Pulse 
-            float amplitude = outputData->H;
-
-            // Now you have the output structure with the extracted values
-
-
-            //Let's manipulate them with math to get data points the glove understands
-
-            // Bytes 2 and 3 are easy math
-            int convertedFreq = frequency * 255; //Byte 3
-            int convertedAmp = amplitude * 255; // Byte 2
-
-            // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
-            // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
-
-            // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
-            // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
-
-            int convertedThumb = right.HapticConvert(thumbForceFeedback);
-            int convertedIndex = right.HapticConvert(indexForceFeedback);
-            int convertedMiddle = right.HapticConvert(middleForceFeedback);
-            int convertedRing = right.HapticConvert(ringForceFeedback);
-            int convertedPinky = right.HapticConvert(pinkyForceFeedback);
-
-            //We are going to use a naming convention to align our bytes easier
-
-            int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
-            int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
-            int index0 = convertedIndex - 64;
-            int index1 = convertedIndex - 127;
-            int middle0 = convertedMiddle - 64;
-            int middle1 = convertedMiddle - 127;
-            int ring0 = convertedRing - 64;
-            int ring1 = convertedRing - 127;
-            int pinky0 = convertedPinky - 64;
-            int pinky1 = convertedPinky - 127;
-
-            // Output Report Creator
-
-            report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
-
-            //Convert and store the data into the rest of the report
-
-            // Thumb force feedback (A)
-            report[1] = thumb0 & 0xFF;
-            report[2] = thumb1 & 0xFF;
-            report[3] = convertedAmp & 0xFF;
-            report[4] = convertedFreq & 0xFF;
-            // Index force feedback (B)
-            report[5] = index0 & 0xFF;
-            report[6] = index1 & 0xFF;
-            report[7] = convertedAmp & 0xFF;
-            report[8] = convertedFreq & 0xFF;
-
-            // Middle force feedback (C)
-            report[9] = middle0 & 0xFF;
-            report[10] = middle1 & 0xFF;
-            report[11] = convertedAmp & 0xFF;
-            report[12] = convertedFreq & 0xFF;
-            // Ring force feedback (D)
-            report[13] = ring0 & 0xFF;
-            report[14] = ring1 & 0xFF;
-            report[15] = convertedAmp & 0xFF;
-            report[16] = convertedFreq & 0xFF;
-            // Pinky force feedback (E)
-            report[17] = pinky0 & 0xFF;
-            report[18] = pinky1 & 0xFF;
-            report[19] = convertedAmp & 0xFF;
-            report[20] = convertedFreq & 0xFF;
+                // Now you have the output structure with the extracted values
 
 
+                //Let's manipulate them with math to get data points the glove understands
+
+                // Bytes 2 and 3 are easy math
+                int convertedFreq = frequency * 255; //Byte 3
+                int convertedAmp = amplitude * 255; // Byte 2
+
+                // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
+                // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
+
+                // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
+                // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
+
+                int convertedThumb = right.HapticConvert(thumbForceFeedback);
+                int convertedIndex = right.HapticConvert(indexForceFeedback);
+                int convertedMiddle = right.HapticConvert(middleForceFeedback);
+                int convertedRing = right.HapticConvert(ringForceFeedback);
+                int convertedPinky = right.HapticConvert(pinkyForceFeedback);
+
+                //We are going to use a naming convention to align our bytes easier
+
+                int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
+                int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
+                int index0 = convertedIndex - 64;
+                int index1 = convertedIndex - 127;
+                int middle0 = convertedMiddle - 64;
+                int middle1 = convertedMiddle - 127;
+                int ring0 = convertedRing - 64;
+                int ring1 = convertedRing - 127;
+                int pinky0 = convertedPinky - 64;
+                int pinky1 = convertedPinky - 127;
+
+                // Output Report Creator
+
+                report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
+
+                //Convert and store the data into the rest of the report
+
+                // Thumb force feedback (A)
+                report[1] = thumb0 & 0xFF;
+                report[2] = thumb1 & 0xFF;
+                report[3] = convertedAmp & 0xFF;
+                report[4] = convertedFreq & 0xFF;
+                // Index force feedback (B)
+                report[5] = index0 & 0xFF;
+                report[6] = index1 & 0xFF;
+                report[7] = convertedAmp & 0xFF;
+                report[8] = convertedFreq & 0xFF;
+
+                // Middle force feedback (C)
+                report[9] = middle0 & 0xFF;
+                report[10] = middle1 & 0xFF;
+                report[11] = convertedAmp & 0xFF;
+                report[12] = convertedFreq & 0xFF;
+                // Ring force feedback (D)
+                report[13] = ring0 & 0xFF;
+                report[14] = ring1 & 0xFF;
+                report[15] = convertedAmp & 0xFF;
+                report[16] = convertedFreq & 0xFF;
+                // Pinky force feedback (E)
+                report[17] = pinky0 & 0xFF;
+                report[18] = pinky1 & 0xFF;
+                report[19] = convertedAmp & 0xFF;
+                report[20] = convertedFreq & 0xFF;
 
 
-            HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
+                printf("Force:");
 
-            printf("%c", HapticData);
+                HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
 
-            printf("\r");
+                printf("%p", HapticData);
 
-            
+                printf("\r");
 
-            right.write(HapticData);
+
+
+                right.write(HapticData);
+            };
 
 
 

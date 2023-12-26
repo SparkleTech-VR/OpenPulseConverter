@@ -1,13 +1,9 @@
 ﻿  OpenPulseConverterSingleton.cpp
 C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(118,53): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(334,31): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(335,30): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(400,21): warning C4477: 'printf' : format string '%c' requires an argument of type 'int', but variadic argument 1 has type 'unsigned char *'
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(400,21): warning C4313: 'printf': '%c' in format string conflicts with argument 1 of type 'unsigned char *'
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(508,31): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(509,30): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(574,20): warning C4477: 'printf' : format string '%c' requires an argument of type 'int', but variadic argument 1 has type 'unsigned char *'
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(574,20): warning C4313: 'printf': '%c' in format string conflicts with argument 1 of type 'unsigned char *'
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(338,35): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(339,34): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(515,35): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(516,34): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
 C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.29.30133\include\xstring(2541,23): warning C4244: 'argument': conversion from 'wchar_t' to 'const _Elem', possible loss of data
           with
           [
