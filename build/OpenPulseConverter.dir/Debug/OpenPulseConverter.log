@@ -38,5 +38,4 @@ C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSinglet
               _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
               _Alloc=std::allocator<char>
           ]
-C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\Msbuild\Microsoft\VC\v160\Microsoft.CppCommon.targets(1074,5): error MSB6006: "link.exe" exited with code 1104.
-LINK : fatal error LNK1104: cannot open file '..\dependencies\hidapi-win\x64\hidapi.lib'
+  OpenPulseConverter.vcxproj -> C:\Users\15054\Documents\GitHub\OpenPulseConverter\build\Debug\OpenPulseConverter.exe
