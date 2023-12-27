@@ -77,6 +77,13 @@ typedef struct GloveInputReport
     unsigned char reportId : 8;
     FingerData thumb, index, middle, ring, pinky;
 } GloveInputReport;
+
+union HIDBuffer
+{
+    GloveInputReport glove;
+    unsigned char buffer[sizeof(glove)];
+};
+
 //FFB section-----------------------------------------------------------------------------------
 typedef struct OutputStructure { //FFB output struct
     int A;
@@ -99,11 +106,7 @@ union OpGdata {
 
 
 
-union HIDBuffer
-{
-    GloveInputReport glove;
-    unsigned char buffer[sizeof(glove)];
-};
+
 #pragma pack(pop)
 
 class whatIsGlove
@@ -144,7 +147,6 @@ private:
     // temp vars
     wchar_t m_wstring[MAX_STR];
     HIDBuffer m_buffer;
-  
     OpGdata OpgData_buffer;
 };
 
