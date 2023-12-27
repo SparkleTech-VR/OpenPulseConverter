@@ -80,7 +80,7 @@ typedef struct FingerData
     FingerData() {
          data0 = data[0] ;//convert the incoming bytes into bitsets
          data1 = data[1];
-         data1Pull |= std::bitset<6>(data1.operator>>(2).to_ulong());
+         data1Pull |= std::bitset<6>(data1.operator>>(2).to_ulong());//split data 1 into the pull and splay
          data1Splay |= std::bitset<2>(data1.to_ulong());
          data2 = data[2];
         // Extracting the real numbers
