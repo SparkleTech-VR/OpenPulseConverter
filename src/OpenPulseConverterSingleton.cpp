@@ -14,7 +14,7 @@
 #include<cstdio>
 // https://github.com/libusb/hidapi
 #include <hidapi.h>
-
+#include<bitset>
 #include <windows.h> 
 #include <cstring>
 
@@ -58,17 +58,34 @@ typedef struct OpenGloveInputData
 #pragma pack(push, 1)
 typedef struct FingerData
 {
+
+
+    //Took a big bong rip and figured out what I need to do
+    //Grab data as native unsigned char from Pulse glove report buffer
+    unsigned char data[3]{};
+    //Init the finger Bytes -- not a snack 
+    std::bitset<8> data0;
+    std::bitset<8> data1;
+    std::bitset<6> data1Pull;
+    std::bitset<2> data1Splay;
+    std::bitset<8> data2;
+
     unsigned int pull{};
     unsigned int splay{};
-    unsigned char data[3]{};
-    //unsigned int pull : 14;
-    //unsigned int splay : 10;
+    //unsigned int pull : 14 bits;
+    //unsigned int splay : 10 bits;
+
+
 
     FingerData() {
-
+         data0 = data[0] ;//convert the incoming bytes into bitsets
+         data1 = data[1];
+         data1Pull |= std::bitset<6>(data1.operator>>(2).to_ulong());
+         data1Splay |= std::bitset<2>(data1.to_ulong());
+         data2 = data[2];
         // Extracting the real numbers
-        pull = static_cast<unsigned int>(data[0] | (data[1] >> 2));
-        splay = static_cast<unsigned int>((data[1] << 6) | data[2]);
+        pull = (data1.to_ulong() + data1Pull.to_ulong());
+        splay = (data1Splay.to_ulong() + data2.to_ulong());
     }
 } FingerData;
 
@@ -113,7 +130,7 @@ class whatIsGlove
 {
 public:
     whatIsGlove( //baby, Don't hurt me, don't hurt me; no mo'
-        int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, m_buffer{},
+        int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, r_buffer{},
         m_ogPipe{ CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr) } {}
     virtual ~whatIsGlove() { hid_close(m_handle); }
 
@@ -121,7 +138,7 @@ public:
     const bool isValid() const { return m_handle; }
 
     //Glove Functions
-    const auto& read() { hid_read(m_handle, m_buffer.buffer, 25); return m_buffer; };
+    const auto& read() { hid_read(m_handle, r_buffer.buffer, 25); return r_buffer; };
     const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
 
     //OpenGlovesDriver Functions
@@ -146,7 +163,7 @@ private:
 
     // temp vars
     wchar_t m_wstring[MAX_STR];
-    HIDBuffer m_buffer;
+    HIDBuffer r_buffer;
     OpGdata OpgData_buffer;
 };
 
