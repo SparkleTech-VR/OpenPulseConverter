@@ -69,9 +69,9 @@ typedef struct FingerData
     std::bitset<6> data1Pull;
     std::bitset<2> data1Splay;
     std::bitset<8> data2;
-
-    unsigned int pull{};
-    unsigned int splay{};
+    std::bitset<14> pull{};
+    std::bitset<10> splay{};
+   
     //unsigned int pull : 14 bits;
     //unsigned int splay : 10 bits;
 
@@ -82,11 +82,20 @@ typedef struct FingerData
          data1 = data[1];
          data1Pull |= std::bitset<6>(data1.operator>>(2).to_ulong());//split data 1 into the pull and splay
          data1Splay |= std::bitset<2>(data1.to_ulong());
-         data2 = data[2];
-        // Extracting the real numbers
-        pull = (data1.to_ulong() + data1Pull.to_ulong());
-        splay = (data1Splay.to_ulong() + data2.to_ulong());
+         data2 = data[2];  //Just need to write this down, we will copy data into the correct form again and use Binary OR to get them combined
+         std::bitset <14> pullLow = (data1Pull.to_ulong()  ) ;
+         std::bitset <14> pullFar = (data1.operator<<(6).to_ulong());
+         std::bitset<10> splayLow =  (data2.to_ulong()) ;
+         std::bitset<10> splayFar = (data1Splay.operator<<(8).to_ulong());
+         std::bitset<14> pull = (pullLow | pullFar);
+         std::bitset<10> splay = (splayLow | splayFar);
     }
+
+
+    // Extracting the real numbers via the to long int function
+    unsigned int pull= (FingerData().pull.to_ulong());
+    unsigned int splay = (FingerData().splay.to_ulong());
+
 } FingerData;
 
 typedef struct GloveInputReport
