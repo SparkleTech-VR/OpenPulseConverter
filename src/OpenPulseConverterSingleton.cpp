@@ -96,12 +96,13 @@ union HIDBuffer
 };
 #pragma pack(pop)
 
-class Glove
+class whatIsGlove
 {
 public:
-    Glove(int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, d_Buffer{}, OpgData_buffer{}, m_wstring {}, m_buffer{},
+    whatIsGlove( //baby, Don't hurt me, don't hurt me; no mo'
+        int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, d_Buffer{}, OpgData_buffer{}, m_wstring {}, m_buffer{},
         m_ogPipe{ CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr) } {}
-    virtual ~Glove() { hid_close(m_handle); }
+    virtual ~whatIsGlove() { hid_close(m_handle); }
 
     // true if the glove is connected
     const bool isValid() const { return m_handle; }
@@ -171,8 +172,8 @@ int main(int argc, char** argv)
     hid_init();
 
     // init gloves
-    Glove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID, LEFT_PIPE };
-    Glove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID, RIGHT_PIPE };
+    whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID, LEFT_PIPE };
+    whatIsGlove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID, RIGHT_PIPE };
 
     // print diagnostics
     if (!left.isValid() && !right.isValid())
