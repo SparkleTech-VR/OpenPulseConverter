@@ -63,17 +63,19 @@ typedef struct FingerData
     //Took a big bong rip and figured out what I need to do
     //Grab data as native unsigned char from Pulse glove report buffer
     unsigned char data[3]{};
+
+
+    
     //Init the finger Bytes -- not a snack 
     std::bitset<8> data0;
     std::bitset<8> data1;
     std::bitset<6> data1Pull;
     std::bitset<2> data1Splay;
     std::bitset<8> data2;
-    std::bitset<14> pull{};
-    std::bitset<10> splay{};
+    std::bitset<14> pullBits{};
+    std::bitset<10> splayBits{};
    
-    //unsigned int pull : 14 bits;
-    //unsigned int splay : 10 bits;
+    
 
 
 
@@ -87,14 +89,16 @@ typedef struct FingerData
          std::bitset <14> pullFar = (data1.operator<<(6).to_ulong());
          std::bitset<10> splayLow =  (data2.to_ulong()) ;
          std::bitset<10> splayFar = (data1Splay.operator<<(8).to_ulong());
-         std::bitset<14> pull = (pullLow | pullFar);
-         std::bitset<10> splay = (splayLow | splayFar);
+          pullBits = (pullLow | pullFar).to_ulong(); // Extracting the real numbers via the to long int function
+          splayBits = (splayLow | splayFar).to_ulong();
+
     }
 
 
-    // Extracting the real numbers via the to long int function
-    unsigned int pull= (FingerData().pull.to_ulong());
-    unsigned int splay = (FingerData().splay.to_ulong());
+    unsigned int pull = pullBits.to_ulong();
+    unsigned int splay = splayBits.to_ulong();
+    
+   
 
 } FingerData;
 
@@ -268,7 +272,7 @@ int main(int argc, char** argv)
         {
             //------Tracking
             const auto& buffer = left.read();
-
+              
 
 
             
