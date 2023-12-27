@@ -58,9 +58,9 @@ typedef struct OpenGloveInputData
 #pragma pack(push, 1)
 typedef struct FingerData
 {
-    unsigned int pull;
-    unsigned int splay;
-    unsigned char data[3];
+    unsigned int pull{};
+    unsigned int splay{};
+    unsigned char data[3]{};
     //unsigned int pull : 14;
     //unsigned int splay : 10;
 
@@ -77,9 +77,19 @@ typedef struct GloveInputReport
     unsigned char reportId : 8;
     FingerData thumb, index, middle, ring, pinky;
 } GloveInputReport;
-
+//FFB section-----------------------------------------------------------------------------------
+typedef struct OutputStructure { //FFB output struct
+    int A;
+    int B;
+    int C;
+    int D;
+    int E;
+    float F;
+    float G;
+    float H;
+} OutputStructure;
 union OpGdata {
-    OpenGloveInputData OgInput; 
+    LPVOID OgInput{};
 
     LPDWORD TrackingData_d;
     
@@ -100,7 +110,7 @@ class whatIsGlove
 {
 public:
     whatIsGlove( //baby, Don't hurt me, don't hurt me; no mo'
-        int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, d_Buffer{}, OpgData_buffer{}, m_wstring {}, m_buffer{},
+        int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, m_buffer{},
         m_ogPipe{ CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr) } {}
     virtual ~whatIsGlove() { hid_close(m_handle); }
 
@@ -112,8 +122,8 @@ public:
     const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
 
     //OpenGlovesDriver Functions
-    const auto& Feel() {  ReadFile(m_ogPipe, d_Buffer, 32, OpgData_buffer.TrackingData_d, NULL); return d_Buffer;};
-    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, 24, OpgData_buffer.TrackingData_d, NULL); };
+    const auto& Feel() { if (m_ogPipe) { ReadFile(m_ogPipe, (LPVOID*)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), OpgData_buffer.TrackingData_d, NULL); } else { OpgData_buffer.OgInput = 0; }; return OpgData_buffer.OgInput;};
+    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, sizeof(TrackingData), OpgData_buffer.TrackingData_d, NULL); };
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
@@ -134,21 +144,11 @@ private:
     // temp vars
     wchar_t m_wstring[MAX_STR];
     HIDBuffer m_buffer;
-    LPVOID d_Buffer;
+  
     OpGdata OpgData_buffer;
 };
 
-//FFB section-----------------------------------------------------------------------------------
-typedef struct OutputStructure { //FFB output struct
-    int A;
-    int B;
-    int C;
-    int D;
-    int E;
-    float F;
-    float G;
-    float H;
-} OutputStructure;
+
 
 /*
  * Main function that runs upon execution
@@ -213,9 +213,9 @@ int main(int argc, char** argv)
     printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
     system("pause");
     
-    // Init Splay and Flex Init Tracking and Haptic Data
+    // Init Splay and Flex ; Init Tracking and Haptic Data
     std::array<float, 5> splay;
-    std::array<std::array<float, 4>, 5> pull;
+    std::array<std::array<float, 4>, 5> flexion;
     LPCVOID TrackingData;
     unsigned char* HapticData;
     // make all the variables for our data to get held in
@@ -272,7 +272,7 @@ int main(int argc, char** argv)
                 };
                 
                 splay = splay_buffer; //Semantics for readability -- no impact on performance
-                pull = pull_buffer;
+                flexion = pull_buffer;
 
             
             // TODO: move data from buffer to ogid -- DONE
@@ -281,7 +281,11 @@ int main(int argc, char** argv)
 
 
             // Convert OpenGloveInputData to LPCvoid
-            OpenGloveInputData ogid{ pull, splay }; // Assuming you have an instance of OpenGloveInputData
+            OpenGloveInputData ogid{}; // Assuming you have an instance of OpenGloveInputData
+
+            //Write your Input data to ogid
+            ogid.flexion = flexion;
+            ogid.splay = splay;
 
             // Step 1: Create an LPCvoid pointer variable
             // TrackingData; done above
@@ -449,14 +453,18 @@ int main(int argc, char** argv)
             };
 
             splay = splay_buffer; //Semantics for readability -- no impact on performance
-            pull = pull_buffer;
+            flexion = pull_buffer;
 
 
             // TODO: move data from buffer to ogid -- DONE
 
 
             // Convert OpenGloveInputData to LPCvoid
-            OpenGloveInputData ogid{ pull, splay }; // Assuming you have an instance of OpenGloveInputData
+            OpenGloveInputData ogid{}; // Assuming you have an instance of OpenGloveInputData
+
+            //Write your Input data to ogid
+            ogid.flexion = flexion;
+            ogid.splay = splay;
 
             // Step 1: Create an LPCvoid pointer variable
             // TrackingData; done above
@@ -504,7 +512,7 @@ int main(int argc, char** argv)
                 int ringForceFeedback = outputData->D;
                 int pinkyForceFeedback = outputData->E;
                 float frequency = outputData->F;
-                float duration = outputData->G;//Not used by Pulse 
+                float duration = outputData->G;//Not used by Pulse ; TODO: thought of a way we can use this by running a sleepfor on this timing
                 float amplitude = outputData->H;
 
                 // Now you have the output structure with the extracted values
@@ -586,6 +594,9 @@ int main(int argc, char** argv)
 
 
                 right.write(HapticData);
+
+                //TODO: Write a sleepfor on the duration variable followed by a write call with a second output report as above but with 0's for the vibrations
+
             };
 
 
@@ -594,7 +605,7 @@ int main(int argc, char** argv)
         std::this_thread::sleep_for(std::chrono::microseconds(1000000 / 67)); // 67 hz  <-- This is really cool
 
 
-        //--------writing FFB Output Reports from the open pipe reading from Opengloves driver. Outputs are only triggered after sending input to the driver.
+        //--------When writing FFB Output Reports from the open pipe reading from Opengloves driver, Outputs are only triggered after sending input to the driver.
     }
 
    
