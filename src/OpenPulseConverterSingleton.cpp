@@ -129,7 +129,7 @@ union OpGdata {
     LPVOID OgInput{};
 
     LPDWORD TrackingData_d;
-    
+    DWORD d_buffer;
 
 
 };
@@ -156,7 +156,7 @@ public:
 
     //OpenGlovesDriver Functions
     const auto& Feel() { if (m_ogPipe) { ReadFile(m_ogPipe, (LPVOID*)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), OpgData_buffer.TrackingData_d, NULL); } else { OpgData_buffer.OgInput = 0; }; return OpgData_buffer.OgInput;};
-    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, sizeof(TrackingData), OpgData_buffer.TrackingData_d, NULL); };
+    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, OpgData_buffer.d_buffer, OpgData_buffer.TrackingData_d, NULL); };
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
@@ -265,8 +265,8 @@ int main(int argc, char** argv)
 
 
     // begin loop to run everything at 67hz
-    bool quit = false;
-    while (!quit)
+    //bool quit = false; // could be used for making a better exit experience
+    while (true)
     {
         if (left.isValid())
         {
