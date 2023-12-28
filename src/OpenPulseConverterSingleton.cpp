@@ -483,9 +483,17 @@ int main(int argc, char** argv)
         //Init Pipe and Opengloves connection
     printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
     system("pause");
-    
-    
 
+    if (right.isValid())
+    {
+        //Init Right Pipe
+        right.OpenPipe(RIGHT_PIPE);
+    }
+    if (left.isValid())
+    {
+        //Init Left Pipe
+        left.OpenPipe(LEFT_PIPE);
+    }
 
     printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck!\n");
     system("pause");
@@ -505,8 +513,7 @@ int main(int argc, char** argv)
         if (left.isValid())
         {
 
-            //Init Left Pipe
-            left.OpenPipe(LEFT_PIPE);
+            
             
 
             //Tracking---------------
@@ -515,7 +522,7 @@ int main(int argc, char** argv)
 
            // Force Feedback Haptics----------------------
 
-            Haptics(left);
+            //Haptics(left);
          
 
 
@@ -524,8 +531,7 @@ int main(int argc, char** argv)
         if (right.isValid())
         {
 
-            //Init Right Pipe
-            right.OpenPipe(RIGHT_PIPE);
+            
             
             //Tracking---------------
 
@@ -533,7 +539,7 @@ int main(int argc, char** argv)
 
             // Force Feedback Haptics----------------------
 
-            Haptics(right);
+            //Haptics(right);
 
 
         }
