@@ -21,6 +21,8 @@
 
 
 
+
+
   
 
         //-----------------------Functions for gloves
@@ -35,6 +37,8 @@ const int RIGHT_GLOVE_PRODUCT_ID = 0xEEE0;
 const int LEFT_GLOVE_PRODUCT_ID = 0xEEE1;
 #define RIGHT_PIPE  "\\\\.\\pipe\\vrapplication\\input\\glove\\v2\\right"
 #define LEFT_PIPE   "\\\\.\\pipe\\vrapplication\\input\\glove\\v2\\left"
+
+
 
 // OpenGlove data structures
 typedef struct OpenGloveInputData
@@ -96,8 +100,8 @@ typedef struct OutputStructure { //FFB output struct
 union OpGdata {
     LPVOID OgInput{};
 
-    LPDWORD TrackingData_d;
-    DWORD d_buffer;
+  
+   
 
 
 };
@@ -111,13 +115,15 @@ typedef struct finT {
 
 #pragma pack(pop)
 
-class whatIsGlove
+class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 {
+
+
 public:
-    whatIsGlove( //baby, Don't hurt me, don't hurt me; no mo'
-        int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, r_buffer{},
-        m_ogPipe{  CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr)  } {}
-    virtual ~whatIsGlove() { hid_close(m_handle); }
+    whatIsGlove( // Derp, this is a Constructor
+        int vid, int pid, const std::string& pipeName) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, r_buffer{},
+        m_ogPipe {CreateFile(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr)} {}
+    virtual ~whatIsGlove() { hid_close(m_handle); };
 
     // true if the glove is connected
     const bool isValid() const { return m_handle; }
@@ -127,8 +133,8 @@ public:
     const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { { ReadFile(m_ogPipe, (LPVOID*)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), OpgData_buffer.TrackingData_d, NULL); } ; return OpgData_buffer.OgInput;};
-    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, sizeof(TrackingData), OpgData_buffer.TrackingData_d, NULL); };
+    const auto& Feel() { {DWORD dwRead; ReadFile(m_ogPipe, (LPVOID)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), &dwRead, NULL); }; return OpgData_buffer.OgInput; };
+    const auto& Touch(const OpenGloveInputData TrackingData) { DWORD dwWritten; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
@@ -139,7 +145,7 @@ public:
         data0 = data[0];//convert the incoming bytes into bitsets
         data1 = data[1];
         data1Pull = data1 >> 2;//split data 1 into the pull and splay
-        data1Splay = data1 & 0b0000000000000011; // this is the mask for int, could also use 0x03 which is the same
+        data1Splay = data1 & 0b0000000000000011; // this is the mask for int, could also use 0x03 which is the same, Thanks again JagRosh for pointing this out(bitsets are overkill)
         data2 = data[2];
 
         //We will copy data into the correct form again and use Binary OR to get them combined
@@ -158,11 +164,7 @@ public:
 
         return ParsedData;
     }
-
     
-
-
-
     
 
     // device info
@@ -170,6 +172,31 @@ public:
     const std::string getProduct() { hid_get_product_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
     const std::string getSerialNumber() { hid_get_serial_number_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
     const std::string getIndexedString(const int i) { hid_get_indexed_string(m_handle, i, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
+    
+    //Run the pipe open with a while loop internally--Last resort
+
+    void OpenPipe(const std::string pipeName) {
+
+    while (m_handle) {
+
+        m_ogPipe = CreateFile(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+
+        if (m_ogPipe != INVALID_HANDLE_VALUE) break;
+
+        if (GetLastError() != ERROR_PIPE_BUSY) {
+            std::cout << "bad error" << std::endl;
+        }
+
+        if (!WaitNamedPipeA(pipeName.c_str(), 1000)) {
+            std::cout << "timed out waiting for pipe" << std::endl;
+        }
+
+        std::cout << "Failed to setup named pipe.. Waiting 1 second..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+
+    std::cout << "Named pipe created successfully." << std::endl;
+};
     
 private:
     // connection to glove
@@ -194,7 +221,7 @@ private:
 // Init Splay and Flex ; Init Tracking and Haptic Data
 std::array<float, 5> splay;
 std::array<std::array<float, 4>, 5> flexion;
-LPCVOID TrackingData;
+ LPCVOID TrackingData;
 unsigned char* HapticData;
 // make all the variables for our data to get held in
 
@@ -275,30 +302,16 @@ void Tracking(whatIsGlove glove) {
     ogid.flexion = flexion;
     ogid.splay = splay;
 
-    // Step 1: Create an LPCvoid pointer variable
-    //TrackingData; Done above;
-
-    // Step 2: Allocate memory for the LPCvoid pointer
-    TrackingData = malloc(sizeof(OpenGloveInputData));
-
-    // Step 3: Copy the data from the original structure to the allocated memory
-    memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
-
-    // Step 4: Cast the allocated memory to LPCvoid
-    LPCVOID convertedData = (LPCVOID)TrackingData;
-
-    glove.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
-
-    free((void*)TrackingData);// Dump the memory so we don't leak into the ram
+    //Write to the Pipes!!
+    glove.Touch(ogid);
+  
 }
 
 void Haptics(whatIsGlove glove) {
+
+
     //------FFB
     const auto& f_buffer = glove.Feel();
-
-
-
-
 
 
 
@@ -309,7 +322,7 @@ void Haptics(whatIsGlove glove) {
         // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
     // 
     // Convert LPVOID to OutputStructure
-        f_buffer; // Assuming you have the LPVOID input data
+       // f_buffer; // Assuming you have the LPVOID input data
 
         // Step 1: Cast the LPVOID to the appropriate structure type
         OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
@@ -404,7 +417,7 @@ void Haptics(whatIsGlove glove) {
         glove.write(HapticData);
 
 
-        //TODO: Write a sleepfor on the duration variable followed by a write call with a second output report as above but with 0's for the vibrations
+        //TODO: Write a sleepfor on the duration G variable followed by a write call with a second output report as above but with 0's for the vibrations
     };
 }
 
@@ -428,9 +441,7 @@ int main(int argc, char** argv)
     system("pause");
     // initialize HID lib
     hid_init();
-    LOG("HID INIT");
-    debugPause;
-
+   
     // init gloves
     whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID, LEFT_PIPE };
     whatIsGlove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID, RIGHT_PIPE };
@@ -493,6 +504,11 @@ int main(int argc, char** argv)
     {
         if (left.isValid())
         {
+
+            //Init Left Pipe
+            left.OpenPipe(LEFT_PIPE);
+            
+
             //Tracking---------------
 
             Tracking(left);
@@ -507,6 +523,9 @@ int main(int argc, char** argv)
 
         if (right.isValid())
         {
+
+            //Init Right Pipe
+            right.OpenPipe(RIGHT_PIPE);
             
             //Tracking---------------
 
@@ -569,22 +588,21 @@ int main(int argc, char** argv)
 // "H" - Amplitude of haptic vibration. Decimal
 
 
-
-//Notes to be deprecated---------------------
-
-
-/// <summary>
-/// FingerData finger;
-
-//finger.data[0] = 0xAB;
-//finger.data[1] = 0xCD;
-//finger.data[2] = 0xEF;
-
-// Extracting the real numbers
-//unsigned int pull = (finger.data[0] << 6) | (finger.data[1] >> 2);
-//u/nsigned int splay = ((finger.data[1] & 0x03) << 8) | finger.data[2];
-
-//std::cout << "Pull: " << pull << std::endl;
-//std::cout << "Splay: " << splay << std::endl;
-
-/// </summary>
+//Cool but deprecated code
+// 
+//   // Step 1: Create an LPCvoid pointer variable
+    //TrackingData; Done above;
+// 
+//        // Step 2: Allocate memory for the LPCvoid pointer
+//    TrackingData = malloc(sizeof(OpenGloveInputData));
+// 
+//    // Step 3: Copy the data from the original structure to the allocated memory
+//    memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
+// 
+//    // Step 4: Cast the allocated memory to LPCvoid
+//    LPCVOID convertedData = (LPCVOID)TrackingData;
+// 
+//    glove.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
+// 
+//    free((void*)TrackingData);// Dump the memory so we don't leak into the ram
+// 
