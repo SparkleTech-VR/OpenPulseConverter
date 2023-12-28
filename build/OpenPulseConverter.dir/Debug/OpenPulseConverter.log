@@ -45,4 +45,5 @@ C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSinglet
           ]
 C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(159): warning C4172: returning address of local variable or temporary
 C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(155): warning C4172: returning address of local variable or temporary
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(95): warning C4717: 'FingerData::FingerData': recursive on all control paths, function will cause runtime stack overflow
   OpenPulseConverter.vcxproj -> C:\Users\15054\Documents\GitHub\OpenPulseConverter\build\Debug\OpenPulseConverter.exe

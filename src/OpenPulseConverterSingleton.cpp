@@ -95,8 +95,8 @@ typedef struct FingerData
     }
    
 
-    unsigned int pull = pullBits.to_ulong();
-    unsigned int splay = splayBits.to_ulong();
+    unsigned int pull = FingerData().pullBits.to_ulong();
+    unsigned int splay = FingerData().splayBits.to_ulong();
     
    
 
@@ -144,7 +144,7 @@ class whatIsGlove
 public:
     whatIsGlove( //baby, Don't hurt me, don't hurt me; no mo'
         int vid, int pid, LPCSTR pipename) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, r_buffer{},
-        m_ogPipe{ CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr) } {}
+        m_ogPipe{  CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr)  } {}
     virtual ~whatIsGlove() { hid_close(m_handle); }
 
     // true if the glove is connected
@@ -274,7 +274,7 @@ int main(int argc, char** argv)
             const auto& buffer = left.read();
               
 
-            FingerData(); // run the buffer to bit convert our data into the data struct
+             // run the buffer to bit convert our data into the data struct
             
                 //test code to confirm we are getting the data we want
 
@@ -455,7 +455,7 @@ int main(int argc, char** argv)
             //----Tracking
             const auto& buffer = right.read();
 
-            FingerData(); // run the buffer to bit convert our data into the data struct
+             // run the buffer to bit convert our data into the data struct
 
             //test code to confirm we are getting the data we want
 
