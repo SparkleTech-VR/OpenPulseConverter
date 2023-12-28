@@ -60,49 +60,10 @@ typedef struct FingerData
 {
 
 
-    //Took a big bong rip and figured out what I need to do
+    
     //Grab data as native unsigned char from Pulse glove report buffer
     unsigned char data[3]{};
 
-
-    
-    
-
-    //Init the finger Bytes -- not a snack 
-    unsigned int data0{};
-    unsigned int data1{};
-    unsigned int data1Pull{};
-    unsigned int data1Splay{};
-    unsigned int data2{};
-    unsigned int pullBits{};
-    unsigned int splayBits{};
-
-
-    FingerData() {
-   
-         data0 = data[0] ;//convert the incoming bytes into bitsets
-         data1 = data[1];
-         data1Pull = data1 >> 2;//split data 1 into the pull and splay
-         data1Splay = data1 & 0b0000000000000011; // this is the mask for int, could also use 0x03 which is the same
-         data2 = data[2];  
-         
-         //We will copy data into the correct form again and use Binary OR to get them combined
-         unsigned int  pullLow = (data1Pull  ) ;
-         unsigned int  pullFar = (data1 << 6);
-         unsigned int splayLow =  (data2) ;
-         unsigned int splayFar = (data1Splay << 8);
-
-         // Extracting the real numbers via the Binary OR function
-          pullBits = (pullLow | pullFar); 
-          splayBits = (splayLow | splayFar);
-
-    }
-
-   
-          //Callable variables from the FingerData() Function
-    unsigned int pull = pullBits;
-    unsigned int splay = splayBits;
-   
 
     
    
@@ -121,7 +82,7 @@ union HIDBuffer
     unsigned char buffer[sizeof(glove)];
 };
 
-//FFB section-----------------------------------------------------------------------------------
+
 typedef struct OutputStructure { //FFB output struct
     int A;
     int B;
@@ -167,6 +128,35 @@ public:
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
+    const void BitData(const unsigned char data[3] ) { //Took a big bong rip and figured out what I need to do
+
+        
+
+        data0 = data[0];//convert the incoming bytes into bitsets
+        data1 = data[1];
+        data1Pull = data1 >> 2;//split data 1 into the pull and splay
+        data1Splay = data1 & 0b0000000000000011; // this is the mask for int, could also use 0x03 which is the same
+        data2 = data[2];
+
+        //We will copy data into the correct form again and use Binary OR to get them combined
+        unsigned int  pullLow = (data1Pull);
+        unsigned int  pullFar = (data1 << 6);
+        unsigned int splayLow = (data2);
+        unsigned int splayFar = (data1Splay << 8);
+
+        // Extracting the real numbers via the Binary OR function
+        pullBits = (pullLow | pullFar);
+        splayBits = (splayLow | splayFar);
+
+    }
+
+
+    //Callable variables from the FingerData() Function
+    unsigned int pull = pullBits;
+    unsigned int splay = splayBits;
+
+
+
     
 
     // device info
@@ -180,6 +170,15 @@ private:
     hid_device* m_handle;
     // pipe to opengloves
     HANDLE m_ogPipe;
+
+    //Init the finger Bytes -- not a snack 
+    unsigned int data0{};
+    unsigned int data1{};
+    unsigned int data1Pull{};
+    unsigned int data1Splay{};
+    unsigned int data2{};
+    unsigned int pullBits{};
+    unsigned int splayBits{};
 
     // temp vars
     wchar_t m_wstring[MAX_STR];
@@ -196,13 +195,17 @@ unsigned char* HapticData;
 unsigned char report[21]; // Output Report Variable HID api 
 
 
-//TODO: remove the left/right runtime code and make a full function for future maintainence ease
+
 
 void Tracking(whatIsGlove glove) {
     //------Tracking
     const auto& buffer = glove.read();
 
-
+        glove.BitData(buffer.glove.thumb.data);
+        glove.BitData(buffer.glove.index.data);
+        glove.BitData(buffer.glove.middle.data);
+        glove.BitData(buffer.glove.ring.data);
+        glove.BitData(buffer.glove.pinky.data);
 
 
 
@@ -210,29 +213,29 @@ void Tracking(whatIsGlove glove) {
 
        //test code to confirm we are getting the data we want
 
-    std::cout << "Pull: " << buffer.glove.index.pull CR;
-    std::cout << "Splay: " << buffer.glove.index.splay CR;
+    std::cout << "Pull: " << glove.pull CR;
+    std::cout << "Splay: " << glove.splay CR;
 
 
     //The data structs for our finger buffer data
 
     // Create std::array for splay_buffer
     const std::array<float, 5> splay_buffer = {
-        static_cast<float>(buffer.glove.thumb.splay),
-        static_cast<float>(buffer.glove.index.splay),
-        static_cast<float>(buffer.glove.middle.splay),
-        static_cast<float>(buffer.glove.ring.splay),
-        static_cast<float>(buffer.glove.pinky.splay)
+        static_cast<float>(glove.splay),
+        static_cast<float>(glove.splay),
+        static_cast<float>(glove.splay),
+        static_cast<float>(glove.splay),
+        static_cast<float>(glove.splay)
     };
 
 
     // Create std::array for pull_buffer
     const std::array < std::array < float, 4 >, 5 > pull_buffer = {
-        static_cast<float>(buffer.glove.thumb.pull),
-        static_cast<float>(buffer.glove.index.pull),
-        static_cast<float>(buffer.glove.middle.pull),
-        static_cast<float>(buffer.glove.ring.pull),
-        static_cast<float>(buffer.glove.pinky.pull)
+        static_cast<float>(glove.pull),
+        static_cast<float>(glove.pull),
+        static_cast<float>(glove.pull),
+        static_cast<float>(glove.pull),
+        static_cast<float>(glove.pull)
     };
 
     splay = splay_buffer; //Semantics for readability -- no impact on performance
@@ -315,11 +318,11 @@ void Haptics(whatIsGlove glove) {
         // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
         // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
 
-        int convertedThumb = left.HapticConvert(thumbForceFeedback);
-        int convertedIndex = left.HapticConvert(indexForceFeedback);
-        int convertedMiddle = left.HapticConvert(middleForceFeedback);
-        int convertedRing = left.HapticConvert(ringForceFeedback);
-        int convertedPinky = left.HapticConvert(pinkyForceFeedback);
+        int convertedThumb = glove.HapticConvert(thumbForceFeedback);
+        int convertedIndex = glove.HapticConvert(indexForceFeedback);
+        int convertedMiddle =glove.HapticConvert(middleForceFeedback);
+        int convertedRing = glove.HapticConvert(ringForceFeedback);
+        int convertedPinky = glove.HapticConvert(pinkyForceFeedback);
 
         //We are going to use a naming convention to align our bytes easier
 
