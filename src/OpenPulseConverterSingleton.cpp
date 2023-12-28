@@ -102,7 +102,11 @@ union OpGdata {
 
 };
 
-
+typedef struct finT {
+    //Paired Data for Return needs
+    unsigned int pull;
+    unsigned int splay;
+};
 
 
 #pragma pack(pop)
@@ -128,7 +132,7 @@ public:
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
-    const void BitData(const unsigned char data[3] ) { //Took a big bong rip and figured out what I need to do
+    const finT BitData(const unsigned char data[3] ) { //Took a big bong rip and figured out what I need to do
 
         
 
@@ -147,13 +151,15 @@ public:
         // Extracting the real numbers via the Binary OR function
         pullBits = (pullLow | pullFar);
         splayBits = (splayLow | splayFar);
+        
+        finT ParsedData;
+        ParsedData.pull = pullBits;
+        ParsedData.splay = splayBits;
 
+        return ParsedData;
     }
 
-
-    //Callable variables from the FingerData() Function
-    unsigned int pull = pullBits;
-    unsigned int splay = splayBits;
+    
 
 
 
@@ -201,41 +207,56 @@ void Tracking(whatIsGlove glove) {
     //------Tracking
     const auto& buffer = glove.read();
 
-        glove.BitData(buffer.glove.thumb.data);
-        glove.BitData(buffer.glove.index.data);
-        glove.BitData(buffer.glove.middle.data);
-        glove.BitData(buffer.glove.ring.data);
-        glove.BitData(buffer.glove.pinky.data);
+      finT thumbTracking =  glove.BitData(buffer.glove.thumb.data);
+      finT indexTracking = glove.BitData(buffer.glove.index.data);
+      finT middleTracking = glove.BitData(buffer.glove.middle.data);
+      finT ringTracking = glove.BitData(buffer.glove.ring.data);
+      finT pinkyTracking = glove.BitData(buffer.glove.pinky.data);
 
 
 
     // run the buffer to bit convert our data into the data struct
 
+      //Pulls from the paired Data
+       unsigned int thumbPull = thumbTracking.pull;
+       unsigned int indexPull = indexTracking.pull;
+       unsigned int middlePull = middleTracking.pull;
+       unsigned int ringPull = ringTracking.pull;
+       unsigned int pinkyPull = pinkyTracking.pull;
+
+       //Splays from the Paired Data
+       // 
+       unsigned int thumbSplay = thumbTracking.splay;
+       unsigned int indexSplay = indexTracking.splay;
+       unsigned int middleSplay = middleTracking.splay;
+       unsigned int ringSplay= ringTracking.splay;
+       unsigned int pinkySplay = pinkyTracking.splay;
+
        //test code to confirm we are getting the data we want
 
-    std::cout << "Pull: " << glove.pull CR;
-    std::cout << "Splay: " << glove.splay CR;
+    std::cout << "Pull: " << indexPull CR;
+    std::cout << "Splay: " << indexSplay CR;
 
 
     //The data structs for our finger buffer data
 
     // Create std::array for splay_buffer
     const std::array<float, 5> splay_buffer = {
-        static_cast<float>(glove.splay),
-        static_cast<float>(glove.splay),
-        static_cast<float>(glove.splay),
-        static_cast<float>(glove.splay),
-        static_cast<float>(glove.splay)
+        static_cast<float>(thumbSplay),
+        static_cast<float>(indexSplay),
+        static_cast<float>(middleSplay),
+        static_cast<float>(ringSplay),
+        static_cast<float>(pinkySplay)
     };
 
 
     // Create std::array for pull_buffer
     const std::array < std::array < float, 4 >, 5 > pull_buffer = {
-        static_cast<float>(glove.pull),
-        static_cast<float>(glove.pull),
-        static_cast<float>(glove.pull),
-        static_cast<float>(glove.pull),
-        static_cast<float>(glove.pull)
+        static_cast<float>(thumbPull),
+        static_cast<float>(indexPull),
+        static_cast<float>(middlePull),
+        static_cast<float>(ringPull),
+        static_cast<float>(pinkyPull)
     };
 
     splay = splay_buffer; //Semantics for readability -- no impact on performance
