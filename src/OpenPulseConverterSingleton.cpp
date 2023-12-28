@@ -27,7 +27,7 @@
         //-----------------------Functions for gloves
 
 
-#define LOG(x) std::cout << "[" << __FILE__ << " L" << __LINE__ << "] " << x << std::endl;
+#define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
 #define MAX_STR 255
 
 const int VENDOR_ID = 0x1915;
@@ -93,7 +93,7 @@ typedef struct FingerData
           splayBits = (splayLow | splayFar).to_ulong();
 
     }
-
+   
 
     unsigned int pull = pullBits.to_ulong();
     unsigned int splay = splayBits.to_ulong();
@@ -156,7 +156,7 @@ public:
 
     //OpenGlovesDriver Functions
     const auto& Feel() { if (m_ogPipe) { ReadFile(m_ogPipe, (LPVOID*)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), OpgData_buffer.TrackingData_d, NULL); } else { OpgData_buffer.OgInput = 0; }; return OpgData_buffer.OgInput;};
-    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, OpgData_buffer.d_buffer, OpgData_buffer.TrackingData_d, NULL); };
+    const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, sizeof(TrackingData), OpgData_buffer.TrackingData_d, NULL); };
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
@@ -274,7 +274,7 @@ int main(int argc, char** argv)
             const auto& buffer = left.read();
               
 
-
+            FingerData(); // run the buffer to bit convert our data into the data struct
             
                 //test code to confirm we are getting the data we want
 
@@ -455,7 +455,7 @@ int main(int argc, char** argv)
             //----Tracking
             const auto& buffer = right.read();
 
-
+            FingerData(); // run the buffer to bit convert our data into the data struct
 
             //test code to confirm we are getting the data we want
 
