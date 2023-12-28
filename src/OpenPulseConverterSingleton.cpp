@@ -66,6 +66,8 @@ typedef struct FingerData
 
 
     
+    
+
     //Init the finger Bytes -- not a snack 
     unsigned int data0{};
     unsigned int data1{};
@@ -74,12 +76,10 @@ typedef struct FingerData
     unsigned int data2{};
     unsigned int pullBits{};
     unsigned int splayBits{};
-   
-    
-
 
 
     FingerData() {
+   
          data0 = data[0] ;//convert the incoming bytes into bitsets
          data1 = data[1];
          data1Pull = data1 >> 2;//split data 1 into the pull and splay
@@ -92,15 +92,17 @@ typedef struct FingerData
          unsigned int splayLow =  (data2) ;
          unsigned int splayFar = (data1Splay << 8);
 
-         // Extracting the real numbers via the to long int function
+         // Extracting the real numbers via the Binary OR function
           pullBits = (pullLow | pullFar); 
           splayBits = (splayLow | splayFar);
 
     }
+
    
           //Callable variables from the FingerData() Function
     unsigned int pull = pullBits;
     unsigned int splay = splayBits;
+   
 
     
    
@@ -184,8 +186,203 @@ private:
     HIDBuffer r_buffer;
     OpGdata OpgData_buffer;
 };
+// Init Splay and Flex ; Init Tracking and Haptic Data
+std::array<float, 5> splay;
+std::array<std::array<float, 4>, 5> flexion;
+LPCVOID TrackingData;
+unsigned char* HapticData;
+// make all the variables for our data to get held in
+
+unsigned char report[21]; // Output Report Variable HID api 
 
 
+//TODO: remove the left/right runtime code and make a full function for future maintainence ease
+
+void Tracking(whatIsGlove glove) {
+    //------Tracking
+    const auto& buffer = glove.read();
+
+
+
+
+
+    // run the buffer to bit convert our data into the data struct
+
+       //test code to confirm we are getting the data we want
+
+    std::cout << "Pull: " << buffer.glove.index.pull CR;
+    std::cout << "Splay: " << buffer.glove.index.splay CR;
+
+
+    //The data structs for our finger buffer data
+
+    // Create std::array for splay_buffer
+    const std::array<float, 5> splay_buffer = {
+        static_cast<float>(buffer.glove.thumb.splay),
+        static_cast<float>(buffer.glove.index.splay),
+        static_cast<float>(buffer.glove.middle.splay),
+        static_cast<float>(buffer.glove.ring.splay),
+        static_cast<float>(buffer.glove.pinky.splay)
+    };
+
+
+    // Create std::array for pull_buffer
+    const std::array < std::array < float, 4 >, 5 > pull_buffer = {
+        static_cast<float>(buffer.glove.thumb.pull),
+        static_cast<float>(buffer.glove.index.pull),
+        static_cast<float>(buffer.glove.middle.pull),
+        static_cast<float>(buffer.glove.ring.pull),
+        static_cast<float>(buffer.glove.pinky.pull)
+    };
+
+    splay = splay_buffer; //Semantics for readability -- no impact on performance
+    flexion = pull_buffer;
+
+
+    // TODO: move data from buffer to ogid -- DONE
+
+
+
+
+    // Convert OpenGloveInputData to LPCvoid
+    OpenGloveInputData ogid{}; // Assuming you have an instance of OpenGloveInputData
+
+    //Write your Input data to ogid
+    ogid.flexion = flexion;
+    ogid.splay = splay;
+
+    // Step 1: Create an LPCvoid pointer variable
+    //TrackingData; Done above;
+
+    // Step 2: Allocate memory for the LPCvoid pointer
+    TrackingData = malloc(sizeof(OpenGloveInputData));
+
+    // Step 3: Copy the data from the original structure to the allocated memory
+    memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
+
+    // Step 4: Cast the allocated memory to LPCvoid
+    LPCVOID convertedData = (LPCVOID)TrackingData;
+
+    glove.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
+
+    free((void*)TrackingData);// Dump the memory so we don't leak into the ram
+}
+
+void Haptics(whatIsGlove glove) {
+    //------FFB
+    const auto& f_buffer = glove.Feel();
+
+
+
+
+
+
+
+    if (f_buffer) {//Check if we are receiving force
+
+        printf("%p", f_buffer);
+
+        // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
+    // 
+    // Convert LPVOID to OutputStructure
+        f_buffer; // Assuming you have the LPVOID input data
+
+        // Step 1: Cast the LPVOID to the appropriate structure type
+        OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
+
+        // Step 2: Access the fields of the structure
+        int thumbForceFeedback = outputData->A;
+        int indexForceFeedback = outputData->B;
+        int middleForceFeedback = outputData->C;
+        int ringForceFeedback = outputData->D;
+        int pinkyForceFeedback = outputData->E;
+        float frequency = outputData->F;
+        float duration = outputData->G;//Not used by Pulse ; TODO: thought of a way we can use this by running a sleepfor on this timing
+        float amplitude = outputData->H;
+
+        // Now you have the output structure with the extracted values
+
+
+        //Let's manipulate them with math to get data points the glove understands
+
+        // Bytes 2 and 3 are easy math
+        int convertedFreq = frequency * 255; //Byte 3
+        int convertedAmp = amplitude * 255; // Byte 2
+
+        // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
+        // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
+
+        // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
+        // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
+
+        int convertedThumb = left.HapticConvert(thumbForceFeedback);
+        int convertedIndex = left.HapticConvert(indexForceFeedback);
+        int convertedMiddle = left.HapticConvert(middleForceFeedback);
+        int convertedRing = left.HapticConvert(ringForceFeedback);
+        int convertedPinky = left.HapticConvert(pinkyForceFeedback);
+
+        //We are going to use a naming convention to align our bytes easier
+
+        int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
+        int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
+        int index0 = convertedIndex - 64;
+        int index1 = convertedIndex - 127;
+        int middle0 = convertedMiddle - 64;
+        int middle1 = convertedMiddle - 127;
+        int ring0 = convertedRing - 64;
+        int ring1 = convertedRing - 127;
+        int pinky0 = convertedPinky - 64;
+        int pinky1 = convertedPinky - 127;
+
+        // Output Report Creator
+
+        report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
+
+        //Convert and store the data into the rest of the report
+
+        // Thumb force feedback (A)
+        report[1] = thumb0 & 0xFF;
+        report[2] = thumb1 & 0xFF;
+        report[3] = convertedAmp & 0xFF;
+        report[4] = convertedFreq & 0xFF;
+        // Index force feedback (B)
+        report[5] = index0 & 0xFF;
+        report[6] = index1 & 0xFF;
+        report[7] = convertedAmp & 0xFF;
+        report[8] = convertedFreq & 0xFF;
+
+        // Middle force feedback (C)
+        report[9] = middle0 & 0xFF;
+        report[10] = middle1 & 0xFF;
+        report[11] = convertedAmp & 0xFF;
+        report[12] = convertedFreq & 0xFF;
+        // Ring force feedback (D)
+        report[13] = ring0 & 0xFF;
+        report[14] = ring1 & 0xFF;
+        report[15] = convertedAmp & 0xFF;
+        report[16] = convertedFreq & 0xFF;
+        // Pinky force feedback (E)
+        report[17] = pinky0 & 0xFF;
+        report[18] = pinky1 & 0xFF;
+        report[19] = convertedAmp & 0xFF;
+        report[20] = convertedFreq & 0xFF;
+
+        printf("Force:");
+
+
+        HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
+
+        printf("%p", HapticData);
+
+        CR;
+
+
+        glove.write(HapticData);
+
+
+        //TODO: Write a sleepfor on the duration variable followed by a write call with a second output report as above but with 0's for the vibrations
+    };
+}
 
 /*
  * Main function that runs upon execution
@@ -252,14 +449,7 @@ int main(int argc, char** argv)
     printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
     system("pause");
     
-    // Init Splay and Flex ; Init Tracking and Haptic Data
-    std::array<float, 5> splay;
-    std::array<std::array<float, 4>, 5> flexion;
-    LPCVOID TrackingData;
-    unsigned char* HapticData;
-    // make all the variables for our data to get held in
     
-    unsigned char report[21]; // Output Report Variable HID api 
 
 
     printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck!\n");
@@ -279,184 +469,13 @@ int main(int argc, char** argv)
     {
         if (left.isValid())
         {
-            //------Tracking
-            const auto& buffer = left.read();
-               
+            //Tracking---------------
 
-            
-            
+            Tracking(left);
 
-             // run the buffer to bit convert our data into the data struct
-            
-                //test code to confirm we are getting the data we want
+           // Force Feedback Haptics----------------------
 
-            std::cout << "Pull: " << buffer.glove.index.pull CR;
-                std::cout << "Splay: " << buffer.glove.index.splay CR ;
-            
-
-                //The data structs for our finger buffer data
-
-                // Create std::array for splay_buffer
-                const std::array<float, 5> splay_buffer = {
-                    static_cast<float>(buffer.glove.thumb.splay),
-                    static_cast<float>(buffer.glove.index.splay),
-                    static_cast<float>(buffer.glove.middle.splay),
-                    static_cast<float>(buffer.glove.ring.splay),
-                    static_cast<float>(buffer.glove.pinky.splay)
-                };
-
-
-                // Create std::array for pull_buffer
-                const std::array < std::array < float, 4 >, 5 > pull_buffer = {
-                    static_cast<float>(buffer.glove.thumb.pull),
-                    static_cast<float>(buffer.glove.index.pull),
-                    static_cast<float>(buffer.glove.middle.pull),
-                    static_cast<float>(buffer.glove.ring.pull),
-                    static_cast<float>(buffer.glove.pinky.pull)
-                };
-                
-                splay = splay_buffer; //Semantics for readability -- no impact on performance
-                flexion = pull_buffer;
-
-            
-            // TODO: move data from buffer to ogid -- DONE
-           
-
-
-
-            // Convert OpenGloveInputData to LPCvoid
-            OpenGloveInputData ogid{}; // Assuming you have an instance of OpenGloveInputData
-
-            //Write your Input data to ogid
-            ogid.flexion = flexion;
-            ogid.splay = splay;
-
-            // Step 1: Create an LPCvoid pointer variable
-            // TrackingData; done above
-
-            // Step 2: Allocate memory for the LPCvoid pointer
-            TrackingData = malloc(sizeof(OpenGloveInputData));
-
-            // Step 3: Copy the data from the original structure to the allocated memory
-            memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
-
-            // Step 4: Cast the allocated memory to LPCvoid
-            LPCVOID convertedData = (LPCVOID)TrackingData;
-
-            left.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
-            
-            free((void*)TrackingData);// Dump the memory so we don't leak into the ram
-
-            //------FFB
-            const auto& f_buffer = left.Feel();
-
-            
-            
-            
-
-           
-
-            if (f_buffer) {//Check if we are receiving force
-
-                printf("%p", f_buffer);
-
-                // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
-            // 
-            // Convert LPVOID to OutputStructure
-                f_buffer; // Assuming you have the LPVOID input data
-
-                // Step 1: Cast the LPVOID to the appropriate structure type
-                OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
-
-                // Step 2: Access the fields of the structure
-                int thumbForceFeedback = outputData->A;
-                int indexForceFeedback = outputData->B;
-                int middleForceFeedback = outputData->C;
-                int ringForceFeedback = outputData->D;
-                int pinkyForceFeedback = outputData->E;
-                float frequency = outputData->F;
-                float duration = outputData->G;//Not used by Pulse 
-                float amplitude = outputData->H;
-
-                // Now you have the output structure with the extracted values
-
-
-                //Let's manipulate them with math to get data points the glove understands
-
-                // Bytes 2 and 3 are easy math
-                int convertedFreq = frequency * 255; //Byte 3
-                int convertedAmp = amplitude * 255; // Byte 2
-
-                // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
-                // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
-
-                // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
-                // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
-
-                int convertedThumb = left.HapticConvert(thumbForceFeedback);
-                int convertedIndex = left.HapticConvert(indexForceFeedback);
-                int convertedMiddle = left.HapticConvert(middleForceFeedback);
-                int convertedRing = left.HapticConvert(ringForceFeedback);
-                int convertedPinky = left.HapticConvert(pinkyForceFeedback);
-
-                //We are going to use a naming convention to align our bytes easier
-
-                int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
-                int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
-                int index0 = convertedIndex - 64;
-                int index1 = convertedIndex - 127;
-                int middle0 = convertedMiddle - 64;
-                int middle1 = convertedMiddle - 127;
-                int ring0 = convertedRing - 64;
-                int ring1 = convertedRing - 127;
-                int pinky0 = convertedPinky - 64;
-                int pinky1 = convertedPinky - 127;
-
-                // Output Report Creator
-
-                report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
-
-                //Convert and store the data into the rest of the report
-
-                // Thumb force feedback (A)
-                report[1] = thumb0 & 0xFF;
-                report[2] = thumb1 & 0xFF;
-                report[3] = convertedAmp & 0xFF;
-                report[4] = convertedFreq & 0xFF;
-                // Index force feedback (B)
-                report[5] = index0 & 0xFF;
-                report[6] = index1 & 0xFF;
-                report[7] = convertedAmp & 0xFF;
-                report[8] = convertedFreq & 0xFF;
-
-                // Middle force feedback (C)
-                report[9] = middle0 & 0xFF;
-                report[10] = middle1 & 0xFF;
-                report[11] = convertedAmp & 0xFF;
-                report[12] = convertedFreq & 0xFF;
-                // Ring force feedback (D)
-                report[13] = ring0 & 0xFF;
-                report[14] = ring1 & 0xFF;
-                report[15] = convertedAmp & 0xFF;
-                report[16] = convertedFreq & 0xFF;
-                // Pinky force feedback (E)
-                report[17] = pinky0 & 0xFF;
-                report[18] = pinky1 & 0xFF;
-                report[19] = convertedAmp & 0xFF;
-                report[20] = convertedFreq & 0xFF;
-
-                printf("Force:");
-
-
-                HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
-
-                printf("%p", HapticData);
-
-                CR;
-
-
-                left.write(HapticData);
-            };
+            Haptics(left);
          
 
 
@@ -464,185 +483,14 @@ int main(int argc, char** argv)
 
         if (right.isValid())
         {
-            //----Tracking
-            const auto& buffer = right.read();
+            
+            //Tracking---------------
 
-             // run the buffer to bit convert our data into the data struct
+            Tracking(right);
 
-            //test code to confirm we are getting the data we want
+            // Force Feedback Haptics----------------------
 
-            std::cout << "Pull: " << buffer.glove.index.pull CR;
-            std::cout << "Splay: " << buffer.glove.index.splay CR;
-
-
-            //The data structs for our finger buffer data
-
-            // Create std::array for splay_buffer
-            const std::array<float, 5> splay_buffer = {
-                static_cast<float>(buffer.glove.thumb.splay),
-                static_cast<float>(buffer.glove.index.splay),
-                static_cast<float>(buffer.glove.middle.splay),
-                static_cast<float>(buffer.glove.ring.splay),
-                static_cast<float>(buffer.glove.pinky.splay)
-            };
-
-
-            // Create std::array for pull_buffer
-            const std::array < std::array < float, 4 >, 5 > pull_buffer = {
-                static_cast<float>(buffer.glove.thumb.pull),
-                static_cast<float>(buffer.glove.index.pull),
-                static_cast<float>(buffer.glove.middle.pull),
-                static_cast<float>(buffer.glove.ring.pull),
-                static_cast<float>(buffer.glove.pinky.pull)
-            };
-
-            splay = splay_buffer; //Semantics for readability -- no impact on performance
-            flexion = pull_buffer;
-
-
-            // TODO: move data from buffer to ogid -- DONE
-
-
-            // Convert OpenGloveInputData to LPCvoid
-            OpenGloveInputData ogid{}; // Assuming you have an instance of OpenGloveInputData
-
-            //Write your Input data to ogid
-            ogid.flexion = flexion;
-            ogid.splay = splay;
-
-            // Step 1: Create an LPCvoid pointer variable
-            // TrackingData; done above
-
-            // Step 2: Allocate memory for the LPCvoid pointer
-            TrackingData = malloc(sizeof(OpenGloveInputData));
-
-            // Step 3: Copy the data from the original structure to the allocated memory
-            memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
-
-            // Step 4: Cast the allocated memory to LPCvoid
-            LPCVOID convertedData = (LPCVOID)TrackingData;
-
-            right.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
-
-            free((void*)TrackingData);// Dump the memory so we don't leak into the ram
-
-
-
-
-
-            //----FFB
-            const auto& f_buffer = right.Feel();
-
-            if (f_buffer) { //check if we are receiving feedback
-
-                
-                printf("%p", f_buffer);
-
-
-
-
-                // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
-                // 
-                // Convert LPVOID to OutputStructure
-                f_buffer; // Assuming you have the LPVOID input data
-
-                // Step 1: Cast the LPVOID to the appropriate structure type
-                OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
-
-                // Step 2: Access the fields of the structure
-                int thumbForceFeedback = outputData->A;
-                int indexForceFeedback = outputData->B;
-                int middleForceFeedback = outputData->C;
-                int ringForceFeedback = outputData->D;
-                int pinkyForceFeedback = outputData->E;
-                float frequency = outputData->F;
-                float duration = outputData->G;//Not used by Pulse ; TODO: thought of a way we can use this by running a sleepfor on this timing
-                float amplitude = outputData->H;
-
-                // Now you have the output structure with the extracted values
-
-
-                //Let's manipulate them with math to get data points the glove understands
-
-                // Bytes 2 and 3 are easy math
-                int convertedFreq = frequency * 255; //Byte 3
-                int convertedAmp = amplitude * 255; // Byte 2
-
-                // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
-                // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
-
-                // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
-                // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
-
-                int convertedThumb = right.HapticConvert(thumbForceFeedback);
-                int convertedIndex = right.HapticConvert(indexForceFeedback);
-                int convertedMiddle = right.HapticConvert(middleForceFeedback);
-                int convertedRing = right.HapticConvert(ringForceFeedback);
-                int convertedPinky = right.HapticConvert(pinkyForceFeedback);
-
-                //We are going to use a naming convention to align our bytes easier
-
-                int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
-                int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
-                int index0 = convertedIndex - 64;
-                int index1 = convertedIndex - 127;
-                int middle0 = convertedMiddle - 64;
-                int middle1 = convertedMiddle - 127;
-                int ring0 = convertedRing - 64;
-                int ring1 = convertedRing - 127;
-                int pinky0 = convertedPinky - 64;
-                int pinky1 = convertedPinky - 127;
-
-                // Output Report Creator
-
-                report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
-
-                //Convert and store the data into the rest of the report
-
-                // Thumb force feedback (A)
-                report[1] = thumb0 & 0xFF;
-                report[2] = thumb1 & 0xFF;
-                report[3] = convertedAmp & 0xFF;
-                report[4] = convertedFreq & 0xFF;
-                // Index force feedback (B)
-                report[5] = index0 & 0xFF;
-                report[6] = index1 & 0xFF;
-                report[7] = convertedAmp & 0xFF;
-                report[8] = convertedFreq & 0xFF;
-
-                // Middle force feedback (C)
-                report[9] = middle0 & 0xFF;
-                report[10] = middle1 & 0xFF;
-                report[11] = convertedAmp & 0xFF;
-                report[12] = convertedFreq & 0xFF;
-                // Ring force feedback (D)
-                report[13] = ring0 & 0xFF;
-                report[14] = ring1 & 0xFF;
-                report[15] = convertedAmp & 0xFF;
-                report[16] = convertedFreq & 0xFF;
-                // Pinky force feedback (E)
-                report[17] = pinky0 & 0xFF;
-                report[18] = pinky1 & 0xFF;
-                report[19] = convertedAmp & 0xFF;
-                report[20] = convertedFreq & 0xFF;
-
-
-                printf("Force:");
-
-                HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
-
-                printf("%p", HapticData);
-
-                CR;
-
-
-
-                right.write(HapticData);
-
-                //TODO: Write a sleepfor on the duration variable followed by a write call with a second output report as above but with 0's for the vibrations
-
-            };
-
+            Haptics(right);
 
 
         }
