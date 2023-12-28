@@ -14,7 +14,6 @@
 #include<cstdio>
 // https://github.com/libusb/hidapi
 #include <hidapi.h>
-#include<bitset>
 #include <windows.h> 
 #include <cstring>
 
@@ -29,7 +28,8 @@
 
 #define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
 #define MAX_STR 255
-
+#define debugPause system("pause")
+#define CR ;printf("\r")
 const int VENDOR_ID = 0x1915;
 const int RIGHT_GLOVE_PRODUCT_ID = 0xEEE0;
 const int LEFT_GLOVE_PRODUCT_ID = 0xEEE1;
@@ -67,13 +67,13 @@ typedef struct FingerData
 
     
     //Init the finger Bytes -- not a snack 
-    std::bitset<8> data0;
-    std::bitset<8> data1;
-    std::bitset<6> data1Pull;
-    std::bitset<2> data1Splay;
-    std::bitset<8> data2;
-    std::bitset<14> pullBits{};
-    std::bitset<10> splayBits{};
+    unsigned int data0{};
+    unsigned int data1{};
+    unsigned int data1Pull{};
+    unsigned int data1Splay{};
+    unsigned int data2{};
+    unsigned int pullBits{};
+    unsigned int splayBits{};
    
     
 
@@ -82,21 +82,26 @@ typedef struct FingerData
     FingerData() {
          data0 = data[0] ;//convert the incoming bytes into bitsets
          data1 = data[1];
-         data1Pull |= std::bitset<6>(data1.operator>>(2).to_ulong());//split data 1 into the pull and splay
-         data1Splay |= std::bitset<2>(data1.to_ulong());
-         data2 = data[2];  //Just need to write this down, we will copy data into the correct form again and use Binary OR to get them combined
-         std::bitset <14> pullLow = (data1Pull.to_ulong()  ) ;
-         std::bitset <14> pullFar = (data1.operator<<(6).to_ulong());
-         std::bitset<10> splayLow =  (data2.to_ulong()) ;
-         std::bitset<10> splayFar = (data1Splay.operator<<(8).to_ulong());
-          pullBits = (pullLow | pullFar).to_ulong(); // Extracting the real numbers via the to long int function
-          splayBits = (splayLow | splayFar).to_ulong();
+         data1Pull = data1 >> 2;//split data 1 into the pull and splay
+         data1Splay = data1 & 0b0000000000000011; // this is the mask for int, could also use 0x03 which is the same
+         data2 = data[2];  
+         
+         //We will copy data into the correct form again and use Binary OR to get them combined
+         unsigned int  pullLow = (data1Pull  ) ;
+         unsigned int  pullFar = (data1 << 6);
+         unsigned int splayLow =  (data2) ;
+         unsigned int splayFar = (data1Splay << 8);
+
+         // Extracting the real numbers via the to long int function
+          pullBits = (pullLow | pullFar); 
+          splayBits = (splayLow | splayFar);
 
     }
    
+          //Callable variables from the FingerData() Function
+    unsigned int pull = pullBits;
+    unsigned int splay = splayBits;
 
-    unsigned int pull = FingerData().pullBits.to_ulong();
-    unsigned int splay = FingerData().splayBits.to_ulong();
     
    
 
@@ -155,7 +160,7 @@ public:
     const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { if (m_ogPipe) { ReadFile(m_ogPipe, (LPVOID*)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), OpgData_buffer.TrackingData_d, NULL); } else { OpgData_buffer.OgInput = 0; }; return OpgData_buffer.OgInput;};
+    const auto& Feel() { { ReadFile(m_ogPipe, (LPVOID*)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), OpgData_buffer.TrackingData_d, NULL); } ; return OpgData_buffer.OgInput;};
     const auto& Touch(LPCVOID TrackingData) {return WriteFile(m_ogPipe, TrackingData, sizeof(TrackingData), OpgData_buffer.TrackingData_d, NULL); };
    
     //Data Functions cause it's neater to shove them here
@@ -202,11 +207,13 @@ int main(int argc, char** argv)
     system("pause");
     // initialize HID lib
     hid_init();
+    LOG("HID INIT");
+    debugPause;
 
     // init gloves
     whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID, LEFT_PIPE };
     whatIsGlove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID, RIGHT_PIPE };
-
+    
     // print diagnostics
     if (!left.isValid() && !right.isValid())
     {
@@ -254,12 +261,14 @@ int main(int argc, char** argv)
     
     unsigned char report[21]; // Output Report Variable HID api 
 
+
+    printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck!\n");
+    system("pause");
     
     //Below this line is only for runtime code; all startup code should be above this line-----------------------------------------------------
     
 
-
-
+    
     
 
 
@@ -272,14 +281,17 @@ int main(int argc, char** argv)
         {
             //------Tracking
             const auto& buffer = left.read();
-              
+               
+
+            
+            
 
              // run the buffer to bit convert our data into the data struct
             
                 //test code to confirm we are getting the data we want
 
-                std::cout << "Pull: " << buffer.glove.index.pull << std::endl;
-                std::cout << "Splay: " << buffer.glove.index.splay << std::endl;
+            std::cout << "Pull: " << buffer.glove.index.pull CR;
+                std::cout << "Splay: " << buffer.glove.index.splay CR ;
             
 
                 //The data structs for our finger buffer data
@@ -440,7 +452,7 @@ int main(int argc, char** argv)
 
                 printf("%p", HapticData);
 
-                printf("\r");
+                CR;
 
 
                 left.write(HapticData);
@@ -459,8 +471,8 @@ int main(int argc, char** argv)
 
             //test code to confirm we are getting the data we want
 
-            std::cout << "Pull: " << buffer.glove.index.pull << std::endl;
-            std::cout << "Splay: " << buffer.glove.index.splay << std::endl;
+            std::cout << "Pull: " << buffer.glove.index.pull CR;
+            std::cout << "Splay: " << buffer.glove.index.splay CR;
 
 
             //The data structs for our finger buffer data
@@ -621,7 +633,7 @@ int main(int argc, char** argv)
 
                 printf("%p", HapticData);
 
-                printf("\r");
+                CR;
 
 
 
