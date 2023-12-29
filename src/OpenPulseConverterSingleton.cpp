@@ -122,7 +122,7 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 public:
     whatIsGlove( // Derp, this is a Constructor
         int vid, int pid, const std::string& pipeName) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, r_buffer{},
-        m_ogPipe {CreateFile(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr)} {}
+        m_ogPipe {CreateFileA(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr)} {}
     virtual ~whatIsGlove() { hid_close(m_handle); };
 
     // true if the glove is connected
@@ -133,8 +133,8 @@ public:
     const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { {DWORD dwRead; ReadFile(m_ogPipe, (LPVOID)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), &dwRead, NULL); }; return OpgData_buffer.OgInput; };
-    const auto& Touch( OpenGloveInputData TrackingData) { DWORD dwWritten; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
+    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), &dwRead, NULL); if (OpgData_buffer.OgInput) { return (OutputStructure*)OpgData_buffer.OgInput; }; };
+    const auto& Touch(const OpenGloveInputData TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(OpenGloveInputData), &dwWritten, NULL); };
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
@@ -174,7 +174,7 @@ public:
     const std::string getIndexedString(const int i) { hid_get_indexed_string(m_handle, i, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
     
     //Run the pipe open with a while loop internally--Last resort
-
+    template <typename T>
     void OpenPipe(const std::string pipeName) {
 
     while (m_handle) {
@@ -491,12 +491,12 @@ int main(int argc, char** argv)
     if (right.isValid())
     {
         //Init Right Pipe
-        right.OpenPipe(RIGHT_PIPE);
+        right.OpenPipe<OpenGloveInputData>(RIGHT_PIPE);
     }
     if (left.isValid())
     {
         //Init Left Pipe
-        left.OpenPipe(LEFT_PIPE);
+        left.OpenPipe<OpenGloveInputData>(LEFT_PIPE);
     }
 
     printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck!\n");

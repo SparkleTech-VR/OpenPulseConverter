@@ -42,6 +42,8 @@ C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSinglet
               _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
               _Alloc=std::allocator<char>
           ]
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(136): warning C4715: 'whatIsGlove::Feel': not all control paths return a value
 C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(133): warning C4172: returning address of local variable or temporary
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(136): warning C4172: returning address of local variable or temporary
 C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(137): warning C4172: returning address of local variable or temporary
   OpenPulseConverter.vcxproj -> C:\Users\15054\Documents\GitHub\OpenPulseConverter\build\Debug\OpenPulseConverter.exe
