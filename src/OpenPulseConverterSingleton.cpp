@@ -134,7 +134,7 @@ public:
 
     //OpenGlovesDriver Functions
     const auto& Feel() { {DWORD dwRead; ReadFile(m_ogPipe, (LPVOID)OpgData_buffer.OgInput, sizeof(OpgData_buffer.OgInput), &dwRead, NULL); }; return OpgData_buffer.OgInput; };
-    const auto& Touch(const OpenGloveInputData TrackingData) { DWORD dwWritten; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
+    const auto& Touch( OpenGloveInputData TrackingData) { DWORD dwWritten; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
    
     //Data Functions cause it's neater to shove them here
     const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
@@ -261,8 +261,8 @@ void Tracking(whatIsGlove glove) {
 
        //test code to confirm we are getting the data we want
 
-    std::cout << "Pull: " << indexPull CR;
-    std::cout << "Splay: " << indexSplay CR;
+       std::cout << "Pull: " << indexPull; printf("\n") ;
+    std::cout << "Splay: " << indexSplay CR CR;
 
 
     //The data structs for our finger buffer data
@@ -295,15 +295,19 @@ void Tracking(whatIsGlove glove) {
 
 
 
-    // Convert OpenGloveInputData to LPCvoid
+    
     OpenGloveInputData ogid{}; // Assuming you have an instance of OpenGloveInputData
 
     //Write your Input data to ogid
     ogid.flexion = flexion;
     ogid.splay = splay;
+    LOG("About to write!");
+    debugPause;
 
     //Write to the Pipes!!
     glove.Touch(ogid);
+    LOG("wrote")
+        debugPause;
   
 }
 
