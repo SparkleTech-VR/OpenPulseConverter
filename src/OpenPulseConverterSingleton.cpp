@@ -29,6 +29,7 @@
 
 
 #define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
+#define DISPLAY(x) std::cout << "OpenPulse Converter:"<< x << std::endl;
 #define MAX_STR 255
 #define debugPause system("pause")
 #define CR ;printf("\r")
@@ -133,7 +134,7 @@ public:
 
    
     //Data Functions cause it's neater to shove them here
-    const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
+    
     const finT BitData(const unsigned char data[3] ) { //Took a big bong rip and figured out what I need to do
 
         
@@ -195,7 +196,7 @@ LPCVOID TrackingData;
 unsigned char* HapticData;
 OpenGloveInputData ogid{};
 // make all the variables for our data to get held in
-
+const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
 unsigned char report[21]; // Output Report Variable HID api 
 
 template <typename T>
@@ -207,8 +208,7 @@ public:
 
     //Run the pipe open with a while loop internally--Last resort
     
-    OpG_Pipe(const std::string& pipeName) :
-        m_ogPipe{ CreateFileA(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr) } {
+    OpG_Pipe(const std::string& pipeName) {
 
         while (true) {
 
@@ -233,9 +233,9 @@ public:
 
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, OpgData_buffer.OgInput, sizeof(OutputStructure), &dwRead, NULL); if (OpgData_buffer.OgInput) { return OpgData_buffer.OgInput; }; };
+    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, OpgData_buffer.OgInput, sizeof(OutputStructure), &dwRead, NULL);  return OpgData_buffer.OgInput;  };
     const auto& Touch(const OpenGloveInputData TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(OpenGloveInputData), &dwWritten, NULL); };
-
+    const bool IsValid() { return m_ogPipe; };
 
 
     // pipe to opengloves
@@ -250,6 +250,8 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
     //------Tracking
     const auto& buffer = glove.read();
 
+
+    // run the buffer to bit convert our data into the data struct
       finT thumbTracking =  glove.BitData(buffer.glove.thumb.data);
       finT indexTracking = glove.BitData(buffer.glove.index.data);
       finT middleTracking = glove.BitData(buffer.glove.middle.data);
@@ -258,7 +260,7 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
 
 
 
-    // run the buffer to bit convert our data into the data struct
+   
 
       //Pulls from the paired Data
        unsigned int thumbPull = thumbTracking.pull;
@@ -316,119 +318,116 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
   
 }
 
-//  void Haptics(whatIsGlove glove) {
+  unsigned char Haptics(OutputStructure ogod) {
 
+      
 
     //------FFB
-    //const auto& f_buffer = OutputStructure ogid;//Nusance code since I made the Pipe a full class
+      const int f_buffer = ogod.B;//Oh Flying Spaghetti Monster Bless this variable *Praise Be to his noodly goodness*
 
 
 
-    //if (f_buffer) {//Check if we are receiving force
+ //Check if we are receiving force
+    
+    printf("%d", f_buffer);
 
-       // printf("%p", f_buffer);
-
-        // Step 1: Extract the values from the LPvoid and assign them to the corresponding fields of the output structure
-    // 
-    // Convert LPVOID to OutputStructure
-       // f_buffer; // Assuming you have the LPVOID input data
-
-  //     // Step 1: Cast the LPVOID to the appropriate structure type
-  //     //OutputStructure* outputData = static_cast<OutputStructure*>(f_buffer);
-  //
-  //     // Step 2: Access the fields of the structure
-  //     int thumbForceFeedback = outputData->A;
-  //     int indexForceFeedback = outputData->B;
-  //     int middleForceFeedback = outputData->C;
-  //     int ringForceFeedback = outputData->D;
-  //     int pinkyForceFeedback = outputData->E;
-  //     float frequency = outputData->F;
-  //     float duration = outputData->G;//Not used by Pulse ; TODO: thought of a way we can use this by running a sleepfor on this timing
-  //     float amplitude = outputData->H;
-  //
-  //     // Now you have the output structure with the extracted values
-  //
-  //
-  //     //Let's manipulate them with math to get data points the glove understands
-  //
-  //     // Bytes 2 and 3 are easy math
-  //     int convertedFreq = frequency * 255; //Byte 3
-  //     int convertedAmp = amplitude * 255; // Byte 2
-  //
-  //     // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
-  //     // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
-  //
-  //     // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
-  //     // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
-  //
-  //     int convertedThumb = glove.HapticConvert(thumbForceFeedback);
-  //     int convertedIndex = glove.HapticConvert(indexForceFeedback);
-  //     int convertedMiddle =glove.HapticConvert(middleForceFeedback);
-  //     int convertedRing = glove.HapticConvert(ringForceFeedback);
-  //     int convertedPinky = glove.HapticConvert(pinkyForceFeedback);
-  //
-  //     //We are going to use a naming convention to align our bytes easier
-  //
-  //     int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
-  //     int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
-  //     int index0 = convertedIndex - 64;
-  //     int index1 = convertedIndex - 127;
-  //     int middle0 = convertedMiddle - 64;
-  //     int middle1 = convertedMiddle - 127;
-  //     int ring0 = convertedRing - 64;
-  //     int ring1 = convertedRing - 127;
-  //     int pinky0 = convertedPinky - 64;
-  //     int pinky1 = convertedPinky - 127;
-  //
-  //     // Output Report Creator
-  //
-  //     report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
-  //
-  //     //Convert and store the data into the rest of the report
-  //
-  //     // Thumb force feedback (A)
-  //     report[1] = thumb0 & 0xFF;
-  //     report[2] = thumb1 & 0xFF;
-  //     report[3] = convertedAmp & 0xFF;
-  //     report[4] = convertedFreq & 0xFF;
-  //     // Index force feedback (B)
-  //     report[5] = index0 & 0xFF;
-  //     report[6] = index1 & 0xFF;
-  //     report[7] = convertedAmp & 0xFF;
-  //     report[8] = convertedFreq & 0xFF;
-  //
-  //     // Middle force feedback (C)
-  //     report[9] = middle0 & 0xFF;
-  //     report[10] = middle1 & 0xFF;
-  //     report[11] = convertedAmp & 0xFF;
-  //     report[12] = convertedFreq & 0xFF;
-  //     // Ring force feedback (D)
-  //     report[13] = ring0 & 0xFF;
-  //     report[14] = ring1 & 0xFF;
-  //     report[15] = convertedAmp & 0xFF;
-  //     report[16] = convertedFreq & 0xFF;
-  //     // Pinky force feedback (E)
-  //     report[17] = pinky0 & 0xFF;
-  //     report[18] = pinky1 & 0xFF;
-  //     report[19] = convertedAmp & 0xFF;
-  //     report[20] = convertedFreq & 0xFF;
-  //
-  //     printf("Force:");
-  //
-  //
-  //     HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
-  //
-  //     printf("%p", HapticData);
-  //
-  //     CR;
-  //
-  //
-  //     glove.write(HapticData);
-  //
-  //
-  //     //TODO: Write a sleepfor on the duration G variable followed by a write call with a second output report as above but with 0's for the vibrations
-  // };
-//   }
+    // Step 1: Extract the values from the  incoming OutputStructure and assign them to the corresponding fields of the output structure
+ 
+    OutputStructure outputData = ogod;
+ 
+     // Step 2: Access the fields of the structure
+     int thumbForceFeedback = outputData.A;
+     int indexForceFeedback = outputData.B;
+     int middleForceFeedback = outputData.C;
+     int ringForceFeedback = outputData.D;
+     int pinkyForceFeedback = outputData.E;
+     float frequency = outputData.F;
+     float duration = outputData.G;//Not used by Pulse ; TODO: thought of a way we can use this by running a sleepfor on this timing
+     float amplitude = outputData.H;
+ 
+     // Now you have the output structure with the extracted values
+ 
+ 
+     //Let's manipulate them with math to get data points the glove understands
+ 
+     // Bytes 2 and 3 are easy math
+     int convertedFreq = frequency * 255; //Byte 3
+     int convertedAmp = amplitude * 255; // Byte 2
+ 
+     // Now its for the rest of the fingers endpoints to be estimated by how far the OpG finger is allowed 
+     // OpG uses 1000 as max value to hold users' fingers straight out, value 0 is unrestricted tracking
+ 
+     // Using the function in the glove class HapticConvert to change our 2 bytes from OpG into 1 byte for Pulse
+     // Then we manipulate that to estimate 2 end points of a spring at where the users' fingers should stop
+ 
+     int convertedThumb = HapticConvert(thumbForceFeedback);
+     int convertedIndex = HapticConvert(indexForceFeedback);
+     int convertedMiddle =HapticConvert(middleForceFeedback);
+     int convertedRing = HapticConvert(ringForceFeedback);
+     int convertedPinky =HapticConvert(pinkyForceFeedback);
+ 
+     //We are going to use a naming convention to align our bytes easier
+ 
+     int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
+     int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
+     int index0 = convertedIndex - 64;
+     int index1 = convertedIndex - 127;
+     int middle0 = convertedMiddle - 64;
+     int middle1 = convertedMiddle - 127;
+     int ring0 = convertedRing - 64;
+     int ring1 = convertedRing - 127;
+     int pinky0 = convertedPinky - 64;
+     int pinky1 = convertedPinky - 127;
+ 
+     // Output Report Creator
+ 
+     report[0] = 0x02;// First Byte needs to be 02 for the Pulse to read it
+ 
+     //Convert and store the data into the rest of the report
+ 
+     // Thumb force feedback (A)
+     report[1] = thumb0 & 0xFF;
+     report[2] = thumb1 & 0xFF;
+     report[3] = convertedAmp & 0xFF;
+     report[4] = convertedFreq & 0xFF;
+     // Index force feedback (B)
+     report[5] = index0 & 0xFF;
+     report[6] = index1 & 0xFF;
+     report[7] = convertedAmp & 0xFF;
+     report[8] = convertedFreq & 0xFF;
+ 
+     // Middle force feedback (C)
+     report[9] = middle0 & 0xFF;
+     report[10] = middle1 & 0xFF;
+     report[11] = convertedAmp & 0xFF;
+     report[12] = convertedFreq & 0xFF;
+     // Ring force feedback (D)
+     report[13] = ring0 & 0xFF;
+     report[14] = ring1 & 0xFF;
+     report[15] = convertedAmp & 0xFF;
+     report[16] = convertedFreq & 0xFF;
+     // Pinky force feedback (E)
+     report[17] = pinky0 & 0xFF;
+     report[18] = pinky1 & 0xFF;
+     report[19] = convertedAmp & 0xFF;
+     report[20] = convertedFreq & 0xFF;
+ 
+     printf("Force:");
+ 
+ 
+     HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
+ 
+     printf("%p", HapticData);
+ 
+     CR;
+ 
+ 
+     return *HapticData;
+ 
+ 
+     //TODO: Write a sleepfor on the duration G variable followed by a write call with a second output report as above but with 0's for the vibrations
+    
+    };
 
 /*
  * Main function that runs upon execution
@@ -452,13 +451,13 @@ int main(int argc, char** argv)
     hid_init();
    
     // init gloves
-    whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID};
+    whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID };
     whatIsGlove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID };
     
     // print diagnostics
     if (!left.isValid() && !right.isValid())
     {
-        LOG("No gloves are connected!")
+        printf("No gloves are connected!");
         hid_exit();
         system("pause");
         return 1;
@@ -466,26 +465,26 @@ int main(int argc, char** argv)
 
     if (left.isValid())
     {
-        LOG("Left Glove Connected!");
-        LOG("Manufacturer: " + left.getManufacturer());
-        LOG("Product     : " + left.getProduct());
-        LOG("SerialNumber: " + left.getSerialNumber());
+        DISPLAY("Left Glove Connected!");
+        DISPLAY("Manufacturer: " + left.getManufacturer());
+        DISPLAY("Product     : " + left.getProduct());
+        DISPLAY("SerialNumber: " + left.getSerialNumber());
     }
     else
     {
-        LOG("Left Glove was not found!");
+        printf("Left Glove was not found!");
     }
 
     if (right.isValid())
     {
-        LOG("Right Glove Connected!");
-        LOG("Manufacturer: " + right.getManufacturer());
-        LOG("Product     : " + right.getProduct());
-        LOG("SerialNumber: " + right.getSerialNumber());
+        DISPLAY("Right Glove Connected!");
+        DISPLAY("Manufacturer: " + right.getManufacturer());
+        DISPLAY("Product     : " + right.getProduct());
+        DISPLAY("SerialNumber: " + right.getSerialNumber());
     }
     else
     {
-        LOG("Right Glove was not found!");
+        printf("Right Glove was not found!");
     }
 
 
@@ -493,18 +492,24 @@ int main(int argc, char** argv)
     printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
     system("pause");
 
-    
+
+
+
+   
         //Init Right Pipe
         OpG_Pipe<OpenGloveInputData> rightPipe(RIGHT_PIPE);
-    
-    
+  
+    if (left.isValid())
+    {
         //Init Left Pipe
-      //  OpG_Pipe<OpenGloveInputData> leftPipe(LEFT_PIPE);
-   
+        OpG_Pipe<OpenGloveInputData> leftPipe(LEFT_PIPE);
+    }
+    else { bool leftPipe = false; };
         //Init our writable blocks
-    OpenGloveInputData ogidR;
-    OpenGloveInputData ogidL;
-
+    OpenGloveInputData ogidR{};
+    OpenGloveInputData ogidL{};
+    OutputStructure ogodR{};
+    OutputStructure ogodL{};
 
 
     printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck!\n");
@@ -533,8 +538,9 @@ int main(int argc, char** argv)
            ogidL = Tracking(left);
 
            // Force Feedback Haptics----------------------
-
-            //Haptics(left);
+           
+           //ogodL = leftPipe.Feel();
+            //Haptics(ogodL);
          
 
 
@@ -551,7 +557,8 @@ int main(int argc, char** argv)
 
             // Force Feedback Haptics----------------------
 
-            //Haptics(right);
+            //ogodR = rightPipe.Feel();
+            //Haptics(ogodR);
 
 
         }
@@ -560,12 +567,16 @@ int main(int argc, char** argv)
 
         //Write to the Left Pipes!!
        // leftPipe.Touch(ogidL);
-        //Write to the Right Pipes!!
-        rightPipe.Touch(ogidR);
-        LOG("wrote")
-            debugPause;
 
-
+        if (rightPipe.IsValid()) {
+            //Write to the Right Pipes!!
+            rightPipe.Touch(ogidR);
+            LOG("wrote");
+            if (GetLastError()) {
+                std::cout << "bad error:__" << GetLastError() << std::endl;
+                debugPause;
+            };
+        };
         //--------When writing FFB Output Reports from the open pipe reading from Opengloves driver, Outputs are only triggered after sending input to the driver.
     }
 
