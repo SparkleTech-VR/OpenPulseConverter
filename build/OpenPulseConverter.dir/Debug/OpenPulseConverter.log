@@ -1,8 +1,8 @@
 ﻿  OpenPulseConverterSingleton.cpp
 C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(114,2): warning C4091: 'typedef ': ignored on left of 'finT' when no variable is declared
 C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(199,49): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(354,24): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(355,23): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(358,24): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:\Users\15054\Documents\GitHub\OpenPulseConverter\src\OpenPulseConverterSingleton.cpp(359,23): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
 C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.29.30133\include\xstring(2541,23): warning C4244: 'argument': conversion from 'wchar_t' to 'const _Elem', possible loss of data
           with
           [

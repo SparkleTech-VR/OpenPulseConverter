@@ -212,7 +212,7 @@ public:
 
         while (true) {
 
-            m_ogPipe = CreateFile(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+            m_ogPipe = CreateFile(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 
             if (m_ogPipe != INVALID_HANDLE_VALUE) break;
 
@@ -237,6 +237,10 @@ public:
     const auto& Touch(const OpenGloveInputData TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(OpenGloveInputData), &dwWritten, NULL); };
     const bool IsValid() { return m_ogPipe; };
 
+
+    ~OpG_Pipe() {
+        CloseHandle(m_ogPipe);
+    }
 
     // pipe to opengloves
     HANDLE m_ogPipe;
@@ -573,7 +577,8 @@ int main(int argc, char** argv)
             rightPipe.Touch(ogidR);
             LOG("wrote");
             if (GetLastError()) {
-                std::cout << "bad error:__" << GetLastError() << std::endl;
+                DWORD errorCode = GetLastError();
+                std::cout << "bad error:__" << errorCode << std::endl;
                 debugPause;
             };
         };
