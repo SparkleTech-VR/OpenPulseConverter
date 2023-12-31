@@ -122,8 +122,17 @@ public:
     const bool isValid() const { return m_handle; }
 
     //Glove Functions
-    const auto& read() { hid_read(m_handle, r_buffer.buffer, 25); return r_buffer; };
-    const auto& write(unsigned char* HapticData) { return hid_write(m_handle, HapticData, 21);  };
+    const auto& read() {
+        auto result = hid_read(m_handle, r_buffer.buffer, 25);
+
+        if (result == -1) {
+            auto error = hid_error(m_handle);
+            std::cout << "Error while reading HID data: " << error << std::endl;
+        }
+
+        return r_buffer;
+    };
+    const void write(unsigned char* HapticData) {  hid_write(m_handle, HapticData, 21);  };
 
    
     //Data Functions cause it's neater to shove them here
@@ -227,7 +236,7 @@ public:
 
     //OpenGlovesDriver Functions
     const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, (LPVOID)OgInput, sizeof(OutputStructure), &dwRead, NULL);  return OgInput;  };
-    const auto& Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
+    const bool Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
     const bool IsValid() { return m_ogPipe; };
 
 
@@ -256,7 +265,10 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
       finT pinkyTracking = glove.BitData(buffer.glove.pinky.data);
 
 
-
+      printf("buffer: ");
+      for (int i = 0; i < sizeof(buffer); i++)
+          printf("%d ", buffer.buffer[i]);
+      printf("\n");
    
 
       //Pulls from the paired Data
@@ -574,6 +586,8 @@ int main(int argc, char** argv)
                 std::cout << "bad error:__" << errorCode << std::endl;
                 debugPause;
             };
+
+            ogidR = {};
         };
         //--------When writing FFB Output Reports from the open pipe reading from Opengloves driver, Outputs are only triggered after sending input to the driver.
     }
