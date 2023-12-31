@@ -26,8 +26,8 @@
   
 
         //-----------------------Functions for gloves
-
-
+#define TOP_RANGE 64 //This is the top of the spring stop lowered in relation to the OpG data
+#define BOTTOM_RANGE 127 //Bottom of the spring
 #define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
 #define DISPLAY(x) std::cout << "OpenPulse Converter:"<< x << std::endl;
 #define MAX_STR 255
@@ -98,14 +98,7 @@ typedef struct OutputStructure { //FFB output struct
     float G;
     float H;
 } OutputStructure;
-union OpGdata {
-    LPVOID OgInput{};
 
-  
-   
-
-
-};
 
 typedef struct finT {
     //Paired Data for Return needs
@@ -122,7 +115,7 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 
 public:
     whatIsGlove( // Derp, this is a Constructor
-        int vid, int pid) : m_handle{ hid_open(vid, pid, nullptr) }, OpgData_buffer{}, m_wstring {}, r_buffer{} {}
+        int vid, int pid) : m_handle{ hid_open(vid, pid, nullptr) }, m_wstring {}, r_buffer{} {}
     virtual ~whatIsGlove() { hid_close(m_handle); };
 
     // true if the glove is connected
@@ -187,12 +180,12 @@ private:
     // temp vars
     wchar_t m_wstring[MAX_STR];
     HIDBuffer r_buffer;
-    OpGdata OpgData_buffer;
+    
 };
 // Init Splay and Flex ; Init Tracking and Haptic Data
 std::array<float, 5> splay;
 std::array<std::array<float, 4>, 5> flexion;
-LPCVOID TrackingData;
+
 unsigned char* HapticData;
 OpenGloveInputData ogid{};
 // make all the variables for our data to get held in
@@ -206,7 +199,7 @@ public:
 
 
 
-    //Run the pipe open with a while loop internally--Last resort
+    //Run the pipe open with a while loop internally
     
     OpG_Pipe(const std::string& pipeName) {
 
@@ -233,8 +226,8 @@ public:
 
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, OpgData_buffer.OgInput, sizeof(OutputStructure), &dwRead, NULL);  return OpgData_buffer.OgInput;  };
-    const auto& Touch(const OpenGloveInputData TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(OpenGloveInputData), &dwWritten, NULL); };
+    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, (LPVOID)OgInput, sizeof(OutputStructure), &dwRead, NULL);  return OgInput;  };
+    const auto& Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
     const bool IsValid() { return m_ogPipe; };
 
 
@@ -244,7 +237,7 @@ public:
 
     // pipe to opengloves
     HANDLE m_ogPipe;
-
+    OutputStructure OgInput{};
 
 };
 
@@ -322,18 +315,18 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
   
 }
 
-  unsigned char Haptics(OutputStructure ogod) {
+  void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
       
 
     //------FFB
-      const int f_buffer = ogod.B;//Oh Flying Spaghetti Monster Bless this variable *Praise Be to his noodly goodness*
+      const int f_buffer = ogod.B;//Oh Flying Spaghetti Monster, Bless this variable *Praise Be to his noodly goodness*
 
 
 
  //Check if we are receiving force
     
-    printf("%d", f_buffer);
+    printf("%d \n", f_buffer);
 
     // Step 1: Extract the values from the  incoming OutputStructure and assign them to the corresponding fields of the output structure
  
@@ -372,16 +365,16 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
  
      //We are going to use a naming convention to align our bytes easier
  
-     int thumb0 = convertedThumb - 64; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier
-     int thumb1 = convertedThumb - 127; // Byte 1 uses the half range to adjust down along the force of OpG
-     int index0 = convertedIndex - 64;
-     int index1 = convertedIndex - 127;
-     int middle0 = convertedMiddle - 64;
-     int middle1 = convertedMiddle - 127;
-     int ring0 = convertedRing - 64;
-     int ring1 = convertedRing - 127;
-     int pinky0 = convertedPinky - 64;
-     int pinky1 = convertedPinky - 127;
+     int thumb0 = convertedThumb - TOP_RANGE; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier; default: 64
+     int thumb1 = convertedThumb - BOTTOM_RANGE; // Byte 1 uses the half range to adjust down along the force of OpG; default: 127
+     int index0 = convertedIndex - TOP_RANGE;
+     int index1 = convertedIndex - BOTTOM_RANGE;
+     int middle0 = convertedMiddle - TOP_RANGE;
+     int middle1 = convertedMiddle - BOTTOM_RANGE;
+     int ring0 = convertedRing - TOP_RANGE;
+     int ring1 = convertedRing - BOTTOM_RANGE;
+     int pinky0 = convertedPinky - TOP_RANGE;
+     int pinky1 = convertedPinky - BOTTOM_RANGE;
  
      // Output Report Creator
  
@@ -426,7 +419,7 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
      CR;
  
  
-     return *HapticData;
+     glove.write( HapticData);//Feel the VR beneath your finger tips!
  
  
      //TODO: Write a sleepfor on the duration G variable followed by a write call with a second output report as above but with 0's for the vibrations
@@ -544,7 +537,7 @@ int main(int argc, char** argv)
            // Force Feedback Haptics----------------------
            
            //ogodL = leftPipe.Feel();
-            //Haptics(ogodL);
+            //Haptics(ogodL,left);
          
 
 
@@ -562,7 +555,7 @@ int main(int argc, char** argv)
             // Force Feedback Haptics----------------------
 
             //ogodR = rightPipe.Feel();
-            //Haptics(ogodR);
+            //Haptics(ogodR,right);
 
 
         }
