@@ -1,5 +1,0 @@
-Dependencies:
-
-HID API
-Release: https://github.com/libusb/hidapi/releases/tag/hidapi-0.14.0
-Unzip to: dependencies/hidapi-win

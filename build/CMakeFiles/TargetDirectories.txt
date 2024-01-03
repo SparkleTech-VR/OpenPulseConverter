@@ -1,3 +1,0 @@
-C:/Users/15054/Documents/GitHub/OpenPulseConverter/build/CMakeFiles/OpenPulseConverter.dir
-C:/Users/15054/Documents/GitHub/OpenPulseConverter/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/15054/Documents/GitHub/OpenPulseConverter/build/CMakeFiles/ZERO_CHECK.dir
