@@ -123,6 +123,7 @@ public:
 
     //Glove Functions
     const auto& read() {
+        memset(&r_buffer, 0, sizeof(r_buffer));
         auto result = hid_read(m_handle, r_buffer.buffer, 16);
 
         if (result == -1) {
@@ -216,7 +217,7 @@ public:
 
         while (true) {
 
-            m_ogPipe = CreateFile(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+            m_ogPipe = CreateFile((LPCWSTR)pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 
             if (m_ogPipe != INVALID_HANDLE_VALUE) break;
 
@@ -256,11 +257,11 @@ public:
 
 OpenGloveInputData Tracking(whatIsGlove glove) {
 
-    HIDBuffer buffer{};
-    memset(&buffer, 0, sizeof(buffer));
+    
+   
 
     //------Tracking
-    buffer = glove.read();
+   auto& buffer = glove.read();
 
 
     // run the buffer to bit convert our data into the data struct

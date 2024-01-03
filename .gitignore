@@ -30,4 +30,8 @@
 *.exe
 *.out
 *.app
+
+#badPaths
 build
+x64
+.vs
