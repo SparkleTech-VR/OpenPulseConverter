@@ -63,15 +63,8 @@ typedef struct OpenGloveInputData
 #pragma pack(push, 1)
 typedef struct FingerData
 {
-
-
-
     //Grab data as native unsigned char from Pulse glove report buffer
     unsigned char data[3]{};
-
-
-
-
 
 } FingerData;
 
@@ -87,7 +80,6 @@ union HIDBuffer
     unsigned char buffer[sizeof(glove)];
 };
 
-
 typedef struct OutputStructure { //FFB output struct
     int A;
     int B;
@@ -99,13 +91,11 @@ typedef struct OutputStructure { //FFB output struct
     float H;
 } OutputStructure;
 
-
 typedef struct finT {
     //Paired Data for Return needs
     unsigned int pull;
     unsigned int splay;
 };
-
 
 #pragma pack(pop)
 
@@ -115,7 +105,9 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 
 public:
     whatIsGlove( // Derp, this is a Constructor
-        int vid, int pid) : m_handle{ hid_open(vid, pid, nullptr) }, m_wstring{}, r_buffer{} {}
+        int vid, int pid) :  m_wstring{}, r_buffer{} {
+        m_handle={ hid_open(vid, pid, nullptr) };
+    }
     virtual ~whatIsGlove() { hid_close(m_handle); };
 
     // true if the glove is connected
@@ -123,12 +115,14 @@ public:
 
     //Glove Functions
     const auto& read() {
+
+        if (m_handle != INVALID_HANDLE_VALUE) { printf("YOU BROKE the PIPE"); return r_buffer = {}; };
         memset(&r_buffer, 0, sizeof(r_buffer));
         auto result = hid_read(m_handle, r_buffer.buffer, 16);
 
         if (result == -1) {
-            const auto error = HID_API_CALL hid_error(m_handle);
-            std::cout << "Error while reading HID data: " << *error << std::endl;
+            const auto error = hid_error(m_handle);
+            std::cout << "Error while reading HID data: " << error << std::endl;
 
             debugPause;
         }
@@ -166,8 +160,6 @@ public:
 
         return ParsedData;
     }
-
-
 
     // device info
     const std::string getManufacturer() { hid_get_manufacturer_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
@@ -209,15 +201,13 @@ class OpG_Pipe {
 public:
 
 
-
-
     //Run the pipe open with a while loop internally
 
     OpG_Pipe(const std::string& pipeName) {
 
         while (true) {
 
-            m_ogPipe = CreateFile((LPCWSTR)pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+            m_ogPipe = CreateFileA(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 
             if (m_ogPipe != INVALID_HANDLE_VALUE) break;
 
@@ -252,8 +242,6 @@ public:
     OutputStructure OgInput{};
 
 };
-
-
 
 OpenGloveInputData Tracking(whatIsGlove glove) {
 
@@ -324,8 +312,6 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
     flexion = pull_buffer;
 
 
-
-
     //Write your Input data to ogid
     ogid.flexion = flexion;
     ogid.splay = splay;
@@ -337,11 +323,8 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
 void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
 
-
     //------FFB
     const int f_buffer = ogod.B;//Oh Flying Spaghetti Monster, Bless this variable *Praise Be to his noodly goodness*
-
-
 
     //Check if we are receiving force
 
@@ -508,10 +491,6 @@ int main(int argc, char** argv)
     printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
     system("pause");
 
-
-
-
-
     //Init Right Pipe
     OpG_Pipe<OpenGloveInputData> rightPipe(RIGHT_PIPE);
 
@@ -535,19 +514,12 @@ int main(int argc, char** argv)
 
 
 
-
-
-
-
     // begin loop to run everything at 67hz
     //bool quit = false; // could be used for making a better exit experience
     while (true)
     {
         if (left.isValid())
         {
-
-
-
 
             //Tracking---------------
 
@@ -558,14 +530,10 @@ int main(int argc, char** argv)
             //ogodL = leftPipe.Feel();
              //Haptics(ogodL,left);
 
-
-
         }
 
         if (right.isValid())
         {
-
-
 
             //Tracking---------------
 
@@ -575,7 +543,6 @@ int main(int argc, char** argv)
 
             //ogodR = rightPipe.Feel();
             //Haptics(ogodR,right);
-
 
         }
         //Functions after the glove Data-------
@@ -594,22 +561,9 @@ int main(int argc, char** argv)
                 debugPause;
             };
 
-
         };
         //--------When writing FFB Output Reports from the open pipe reading from Opengloves driver, Outputs are only triggered after sending input to the driver.
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // close the hidapi library

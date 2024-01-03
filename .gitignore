@@ -50,3 +50,8 @@ x64/Debug/OpenPulseConverter.pdb
 x64/Debug/OpenPulseConverter.vcxproj.FileListAbsolute.txt
 x64/Debug/vc143.idb
 x64/Debug/vc143.pdb
+*.tlog
+*.lastbuildstate
+*.recipe
+*.ilk
+*.log
