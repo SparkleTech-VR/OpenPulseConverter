@@ -95,7 +95,7 @@ typedef struct finT {
     //Paired Data for Return needs
     unsigned int pull;
     unsigned int splay;
-};
+}finT;
 
 #pragma pack(pop)
 
@@ -106,29 +106,39 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 public:
     whatIsGlove( // Derp, this is a Constructor
         int vid, int pid) :  m_wstring{}, r_buffer{} {
-        m_handle={ hid_open(vid, pid, nullptr) };
+        m_handle={ hid_open(vid, pid, nullptr)  };
     }
-    virtual ~whatIsGlove() { hid_close(m_handle); };
+    //virtual ~whatIsGlove() { hid_close(m_handle); };
 
     // true if the glove is connected
     const bool isValid() const { return m_handle; }
 
     //Glove Functions
-    const auto& read() {
+     hid_device* reOpen(int vid, int pid) { return hid_open(vid, pid, nullptr); };
+     const auto& read() {
 
-        if (m_handle != INVALID_HANDLE_VALUE) { printf("YOU BROKE the PIPE"); return r_buffer = {}; };
-        memset(&r_buffer, 0, sizeof(r_buffer));
-        auto result = hid_read(m_handle, r_buffer.buffer, 16);
 
-        if (result == -1) {
-            const auto error = hid_error(m_handle);
-            std::cout << "Error while reading HID data: " << error << std::endl;
+         if (m_handle != INVALID_HANDLE_VALUE) {
+             auto result = hid_read(m_handle, r_buffer.buffer, 16);
+             std::cout << "Handle being Read:" << &m_handle << std::endl;
+             if (result == -1) {
+                 const auto error = hid_error(m_handle);
+                 std::cout << "Error while reading HID data: " << error << "Handle with bad Read:" << m_handle << std::endl;
 
-            debugPause;
-        }
+             }
+             else if (m_handle == INVALID_HANDLE_VALUE) {
+                 printf("Attempting right glove reconnection with HID Handle; Please wait upto 0.1 seconds!\n");
 
-        return r_buffer;
-    };
+                 m_handle = reOpen(VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID);
+
+
+
+                 debugPause;
+             };
+
+             return r_buffer;
+         }
+     };
     const void write(unsigned char* HapticData) { hid_write(m_handle, HapticData, 21); };
 
 
@@ -171,7 +181,7 @@ public:
 private:
     // connection to glove
     hid_device* m_handle;
-
+    
     //Init the finger Bytes -- not a snack 
     unsigned int data0{};
     unsigned int data1{};
@@ -452,7 +462,7 @@ int main(int argc, char** argv)
     // init gloves
     whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID };
     whatIsGlove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID };
-
+    
     // print diagnostics
     if (!left.isValid() && !right.isValid())
     {
@@ -551,7 +561,7 @@ int main(int argc, char** argv)
         //Write to the Left Pipes!!
        // leftPipe.Touch(ogidL);
 
-        if (false) { //rightPipe.IsValid()
+        if (rightPipe.IsValid()) { //
             //Write to the Right Pipes!!
             rightPipe.Touch(ogidR);
             LOG("wrote");
@@ -567,9 +577,9 @@ int main(int argc, char** argv)
 
 
     // close the hidapi library
-    hid_exit();
+   return hid_exit();
 
-    return 0;
+    
 }
 
 
@@ -615,4 +625,22 @@ int main(int argc, char** argv)
 //    glove.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
 // 
 //    free((void*)TrackingData);// Dump the memory so we don't leak into the ram
+//
 // 
+// This was some test code to try resetting the handle if that became invalid---Test Failed
+//      //  if (m_handle == INVALID_HANDLE_VALUE) { printf("Attempting right glove reconnection with HID Handle; Please wait upto 0.1 seconds!\n");  r_buffer = {}; 
+//      while (m_handle == INVALID_HANDLE_VALUE) {
+//          m_handle = reOpen(VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID);
+//          if (m_handle != INVALID_HANDLE_VALUE) break;
+//          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//      }
+//              };
+//      
+// 
+// 
+// 
+// 
+// 
+// 
+//  
+//
