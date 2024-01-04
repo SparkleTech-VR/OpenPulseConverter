@@ -143,7 +143,7 @@ public:
 
 
     //Data Functions cause it's neater to shove them here
-    const float isCurled(int finData) { if (finData > 9500) { return 1; } else { return 0; }; };
+    const float isCurled(int finData) { float sentFloat = (float)finData / ( 16383/3); return sentFloat; };
     const finT BitData(const unsigned char data[3]) { //Took a big bong rip and figured out what I need to do
 
 
@@ -238,7 +238,7 @@ public:
 
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, (LPVOID)OgInput, sizeof(OutputStructure), &dwRead, NULL);  return OgInput; };
+    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, OgInput, sizeof(OutputStructure),  &dwRead, NULL);  return OgInput; };
     const bool Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
     const bool IsValid() { return m_ogPipe; };
 
@@ -313,8 +313,8 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
     std::array < std::array < float, 4 >, 5 > pull_buffer{};
 
     pull_buffer[0]={ glove.isCurled(thumbPull) };
-    pull_buffer[1] = { glove.isCurled(indexPull) };
-    pull_buffer[2] = { glove.isCurled(middlePull) };
+    pull_buffer[1] = {glove.isCurled(indexPull)};
+    pull_buffer[2] = {glove.isCurled(middlePull)};
     pull_buffer[3] = { glove.isCurled(ringPull )};
     pull_buffer[4] = { glove.isCurled(pinkyPull) };
     splay = splay_buffer; //Semantics for readability -- no impact on performance
@@ -550,8 +550,8 @@ int main(int argc, char** argv)
 
             // Force Feedback Haptics----------------------
 
-            //ogodR = rightPipe.Feel();
-            //Haptics(ogodR,right);
+            ogodR = rightPipe.Feel();
+            Haptics(ogodR,right);
 
         }
         //Functions after the glove Data-------
