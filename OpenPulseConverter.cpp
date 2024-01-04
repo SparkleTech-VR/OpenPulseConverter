@@ -238,7 +238,7 @@ public:
 
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, OgInput, sizeof(OutputStructure),  &dwRead, NULL);  return OgInput; };
+    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, reinterpret_cast<LPVOID>(&OgInput), sizeof(OutputStructure),  &dwRead, NULL);  return OgInput; };
     const bool Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
     const bool IsValid() { return m_ogPipe; };
 
