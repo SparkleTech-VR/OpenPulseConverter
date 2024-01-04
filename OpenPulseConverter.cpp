@@ -143,7 +143,7 @@ public:
 
 
     //Data Functions cause it's neater to shove them here
-
+    const float isCurled(int finData) { if (finData > 9500) { return 1; } else { return 0; }; };
     const finT BitData(const unsigned char data[3]) { //Took a big bong rip and figured out what I need to do
 
 
@@ -301,23 +301,22 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
 
     // Create std::array for splay_buffer
     const std::array<float, 5> splay_buffer = {
-        static_cast<float>(thumbSplay),
-        static_cast<float>(indexSplay),
-        static_cast<float>(middleSplay),
-        static_cast<float>(ringSplay),
-        static_cast<float>(pinkySplay)
+        (float)thumbSplay,
+        (float)indexSplay,
+        (float)middleSplay,
+        (float)ringSplay,
+        (float)pinkySplay
     };
 
 
     // Create std::array for pull_buffer
-    const std::array < std::array < float, 4 >, 5 > pull_buffer = {
-        static_cast<float>(thumbPull),
-        static_cast<float>(indexPull),
-        static_cast<float>(middlePull),
-        static_cast<float>(ringPull),
-        static_cast<float>(pinkyPull)
-    };
+    std::array < std::array < float, 4 >, 5 > pull_buffer{};
 
+    pull_buffer[0]={ glove.isCurled(thumbPull) };
+    pull_buffer[1] = { glove.isCurled(indexPull) };
+    pull_buffer[2] = { glove.isCurled(middlePull) };
+    pull_buffer[3] = { glove.isCurled(ringPull )};
+    pull_buffer[4] = { glove.isCurled(pinkyPull) };
     splay = splay_buffer; //Semantics for readability -- no impact on performance
     flexion = pull_buffer;
 
@@ -538,7 +537,7 @@ int main(int argc, char** argv)
             // Force Feedback Haptics----------------------
 
             //ogodL = leftPipe.Feel();
-             //Haptics(ogodL,left);
+            //Haptics(ogodL,left);
 
         }
 
