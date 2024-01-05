@@ -215,11 +215,13 @@ public:
 
     OpG_Pipe(const std::string& pipeName) {
 
-        while (true) {
+        while ( i < 10) {
 
             m_ogPipe = CreateFileA(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 
             if (m_ogPipe != INVALID_HANDLE_VALUE) break;
+
+            if (i == 9) { printf("Pipe about to timeout"); break; }
 
             if (GetLastError() != ERROR_PIPE_BUSY) {
                 std::cout << "bad error" << std::endl;
@@ -231,6 +233,7 @@ public:
 
             std::cout << "Failed to setup named pipe.. Waiting 1 second..." << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            i++;
         }
 
         std::cout << "Named pipe created successfully." << std::endl;
@@ -238,7 +241,7 @@ public:
 
 
     //OpenGlovesDriver Functions
-    const auto& Feel() { DWORD dwRead; ReadFile(m_ogPipe, reinterpret_cast<LPVOID>(&OgInput), sizeof(OutputStructure),  &dwRead, NULL);  return OgInput; };
+    const auto& Feel() { DWORD dwRead; bool returnCheck = ReadFile(m_ogPipe, reinterpret_cast<LPVOID>(&OgInput), sizeof(OutputStructure), &dwRead, NULL); if (returnCheck) { return OgInput; } else { OutputStructure trashzero{}; return trashzero; } };
     const bool Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
     const bool IsValid() { return m_ogPipe; };
 
@@ -249,7 +252,10 @@ public:
 
     // pipe to opengloves
     HANDLE m_ogPipe;
+
+    //temp vars
     OutputStructure OgInput{};
+    int i;
 
 };
 
@@ -324,6 +330,8 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
     //Write your Input data to ogid
     ogid.flexion = flexion;
     ogid.splay = splay;
+    //buttons to be emulated, trgValue, grab, menu; maybe pinch, joyx,joyY, maybe others as I care in games
+    //ogid.trgValue = indexPull; //example code for rest of buttons
 
     return ogid;
 
@@ -461,7 +469,7 @@ int main(int argc, char** argv)
     // init gloves
     whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID };
     whatIsGlove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID };
-    
+
     // print diagnostics
     if (!left.isValid() && !right.isValid())
     {
@@ -503,12 +511,9 @@ int main(int argc, char** argv)
     //Init Right Pipe
     OpG_Pipe<OpenGloveInputData> rightPipe(RIGHT_PIPE);
 
-    if (left.isValid())
-    {
-        //Init Left Pipe
-        OpG_Pipe<OpenGloveInputData> leftPipe(LEFT_PIPE);
-    }
-    else { bool leftPipe = false; };
+    //Init Left Pipe
+   // OpG_Pipe<OpenGloveInputData> leftPipe(LEFT_PIPE);
+
     //Init our writable blocks
     OpenGloveInputData ogidR{};
     OpenGloveInputData ogidL{};
@@ -534,52 +539,65 @@ int main(int argc, char** argv)
 
             ogidL = Tracking(left);
 
-            // Force Feedback Haptics----------------------
+        //   if (leftPipe.IsValid()) { //
+        //       //Write to the Left Pipes!!
+        //       leftPipe.Touch(ogidL);
+        //       LOG("wrote");
+        //       if (GetLastError()) {
+        //           DWORD errorCode = GetLastError();
+        //           std::cout << "bad error:__" << errorCode << std::endl;
+        //           debugPause;
+        //       };
+                // Force Feedback Haptics----------------------
 
-            //ogodL = leftPipe.Feel();
-            //Haptics(ogodL,left);
+                //ogodL = leftPipe.Feel();
+                //Haptics(ogodL,left);
 
-        }
+            }
 
-        if (right.isValid())
-        {
+            if (right.isValid())
+            {
 
-            //Tracking---------------
+                //Tracking---------------
 
-            ogidR = Tracking(right);
+                ogidR = Tracking(right);
 
-            // Force Feedback Haptics----------------------
+                if (rightPipe.IsValid()) { //
+                    //Write to the Right Pipes!!
+                    rightPipe.Touch(ogidR);
+                    LOG("wrote");
+                    if (GetLastError()) {
+                        DWORD errorCode = GetLastError();
+                        std::cout << "bad error:__" << errorCode << std::endl;
+                        debugPause;
+                    };
 
-            ogodR = rightPipe.Feel();
-            Haptics(ogodR,right);
+                    // Force Feedback Haptics----------------------
 
-        }
-        //Functions after the glove Data-------
-        std::this_thread::sleep_for(std::chrono::microseconds(1000000 / 67)); // 67 hz  <-- This is really cool
+                    //  ogodR = rightPipe.Feel();
+                    //  if (&ogodR) {
+                    //      Haptics(ogodR, right);
+                    //  };
 
-        //Write to the Left Pipes!!
-       // leftPipe.Touch(ogidL);
+                }
+                //Functions after the glove Data-------
+                std::this_thread::sleep_for(std::chrono::microseconds(1000000 / 67)); // 67 hz  <-- This is really cool
 
-        if (rightPipe.IsValid()) { //
-            //Write to the Right Pipes!!
-            rightPipe.Touch(ogidR);
-            LOG("wrote");
-            if (GetLastError()) {
-                DWORD errorCode = GetLastError();
-                std::cout << "bad error:__" << errorCode << std::endl;
-                debugPause;
+
+
+
+
             };
+            //--------When writing FFB Output Reports from the open pipe reading from Opengloves driver, Outputs are only triggered after sending input to the driver.
+        }
 
-        };
-        //--------When writing FFB Output Reports from the open pipe reading from Opengloves driver, Outputs are only triggered after sending input to the driver.
+
+        // close the hidapi library
+        return hid_exit();
+
+
     }
 
-
-    // close the hidapi library
-   return hid_exit();
-
-    
-}
 
 
 //FFB math theory
