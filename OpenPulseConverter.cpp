@@ -105,16 +105,16 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 
 public:
     whatIsGlove( // Derp, this is a Constructor
-        int vid, int pid) :  m_wstring{}, r_buffer{} {
+        int vid, int pid) : m_wstring{}, OgInput{}, m_ogPipe{}, r_buffer{} {
         m_handle={ hid_open(vid, pid, nullptr)  };
     }
-    //virtual ~whatIsGlove() { hid_close(m_handle); };
+    //virtual ~whatIsGlove() { hid_close(m_handle); }; //CAREFUL!!! THIS LEADS TO CRASH BEHAVIOR, I know destructors are proper code, however here we are cleaning with hid_exit
 
     // true if the glove is connected
     const bool isValid() const { return m_handle; }
 
     //Glove Functions
-     hid_device* reOpen(int vid, int pid) { return hid_open(vid, pid, nullptr); };
+   
      const auto& read() {
 
 
@@ -126,24 +126,60 @@ public:
                  std::cout << "Error while reading HID data: " << error << "Handle with bad Read:" << m_handle << std::endl;
 
              }
-             else if (m_handle == INVALID_HANDLE_VALUE) {
-                 printf("Attempting right glove reconnection with HID Handle; Please wait upto 0.1 seconds!\n");
-
-                 m_handle = reOpen(VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID);
-
-
-
-                 debugPause;
-             };
+             
 
              return r_buffer;
          }
      };
     const void write(unsigned char* HapticData) { hid_write(m_handle, HapticData, 21); };
 
+    
+    //Run the pipe open with a for loop internally
+   
+    void openPipe(const std::string& pipeName) {
+
+        for (int i = 0; i < 10; i++) {
+
+            m_ogPipe = CreateFileA(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+            if (m_ogPipe != INVALID_HANDLE_VALUE) {
+                std::cout << "Named pipe created Successfully." << std::endl; break;
+            };
+
+            if (i == 9) { printf("Pipe about to timeout\n"); std::cout << "Named pipe created Attempt Ended." << std::endl; break; }
+
+            if (GetLastError() != ERROR_PIPE_BUSY) {
+                std::cout << "bad error" << std::endl;
+            }
+
+            if (!WaitNamedPipeA(pipeName.c_str(), 1000)) {
+                std::cout << "timed out waiting for pipe" << std::endl;
+            }
+
+            std::cout << "Failed to setup named pipe.. Waiting 1 second..." << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            i++;
+        }
+
+        
+    };
+
+
+    //OpenGlovesDriver Functions
+    const auto& Feel() { DWORD dwRead; bool returnCheck = ReadFile(m_ogPipe, reinterpret_cast<LPVOID>(&OgInput), sizeof(OutputStructure), &dwRead, NULL); if (returnCheck) { return OgInput; } else { OutputStructure trashzero{}; return trashzero; } };
+    template <typename T>
+    const bool Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
+    const bool pipeIsValid() { return m_ogPipe; };
+
+
+    void closePipe() {
+        CloseHandle(m_ogPipe);
+    }
+
+   
 
     //Data Functions cause it's neater to shove them here
-    const float isCurled(int finData) { float sentFloat = (float)finData / ( 16383/3); return sentFloat; };
+    const float isCurled(int finData) { float sentFloat = (16383.0f / (float)finData); return sentFloat; };
     const finT BitData(const unsigned char data[3]) { //Took a big bong rip and figured out what I need to do
 
 
@@ -194,6 +230,11 @@ private:
     // temp vars
     wchar_t m_wstring[MAX_STR];
     HIDBuffer r_buffer;
+    
+    HANDLE m_ogPipe;
+
+    
+    OutputStructure OgInput{};
 
 };
 // Init Splay and Flex ; Init Tracking and Haptic Data
@@ -206,58 +247,9 @@ OpenGloveInputData ogid{};
 const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
 unsigned char report[21]; // Output Report Variable HID api 
 
-template <typename T>
-class OpG_Pipe {
-public:
 
+    
 
-    //Run the pipe open with a while loop internally
-
-    OpG_Pipe(const std::string& pipeName) {
-
-        while ( i < 10) {
-
-            m_ogPipe = CreateFileA(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-
-            if (m_ogPipe != INVALID_HANDLE_VALUE) break;
-
-            if (i == 9) { printf("Pipe about to timeout"); break; }
-
-            if (GetLastError() != ERROR_PIPE_BUSY) {
-                std::cout << "bad error" << std::endl;
-            }
-
-            if (!WaitNamedPipeA(pipeName.c_str(), 1000)) {
-                std::cout << "timed out waiting for pipe" << std::endl;
-            }
-
-            std::cout << "Failed to setup named pipe.. Waiting 1 second..." << std::endl;
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            i++;
-        }
-
-        std::cout << "Named pipe created successfully." << std::endl;
-    };
-
-
-    //OpenGlovesDriver Functions
-    const auto& Feel() { DWORD dwRead; bool returnCheck = ReadFile(m_ogPipe, reinterpret_cast<LPVOID>(&OgInput), sizeof(OutputStructure), &dwRead, NULL); if (returnCheck) { return OgInput; } else { OutputStructure trashzero{}; return trashzero; } };
-    const bool Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
-    const bool IsValid() { return m_ogPipe; };
-
-
-    ~OpG_Pipe() {
-        CloseHandle(m_ogPipe);
-    }
-
-    // pipe to opengloves
-    HANDLE m_ogPipe;
-
-    //temp vars
-    OutputStructure OgInput{};
-    int i;
-
-};
 
 OpenGloveInputData Tracking(whatIsGlove glove) {
 
@@ -317,12 +309,23 @@ OpenGloveInputData Tracking(whatIsGlove glove) {
 
     // Create std::array for pull_buffer
     std::array < std::array < float, 4 >, 5 > pull_buffer{};
-
-    pull_buffer[0]={ glove.isCurled(thumbPull) };
-    pull_buffer[1] = {glove.isCurled(indexPull)};
-    pull_buffer[2] = {glove.isCurled(middlePull)};
-    pull_buffer[3] = { glove.isCurled(ringPull )};
-    pull_buffer[4] = { glove.isCurled(pinkyPull) };
+    for (int t =0; t < 3; t++ ) {
+        pull_buffer[0][t] = {glove.isCurled(thumbPull)};
+    }
+    for (int i = 0; i < 4; i++) {
+        pull_buffer[1][i] = {glove.isCurled(indexPull)};
+    }
+    for (int m = 0; m < 4; m++) {
+        pull_buffer[2][m] = {glove.isCurled(middlePull)};
+    }
+    for (int r = 0; r < 4; r++) {
+        pull_buffer[3][r] = {glove.isCurled(ringPull)};
+    }
+    for (int p = 0; p < 4; p++) {
+        pull_buffer[4][p] = {glove.isCurled(pinkyPull)};
+    }
+    
+    
     splay = splay_buffer; //Semantics for readability -- no impact on performance
     flexion = pull_buffer;
 
@@ -452,7 +455,7 @@ int main(int argc, char** argv)
 {
 
     //Opening warning Message window to Alert users of Experimental Code
-    LPCWSTR WarningMB = L"This is a developer tool for other developers by using this you accept any and all liability to hardware or psyche. You have been warned!";
+    LPCWSTR WarningMB = L"This is a developer tool for other developers by using this you accept any and all liability to hardware, software, or psyche. You have been warned!";
     LPCWSTR title = L"DEVELOPERS TOOL ONLY";
 
 
@@ -461,7 +464,7 @@ int main(int argc, char** argv)
     MessageBox(NULL, WarningMB, title, MB_OK);
 
 
-    printf("Hello World! \n This is the OpenPulse Converter, a simple tool to send tracking and haptic data between Bifrost Pulse Gloves and OpenGloves Driver. \n This is a community development from the Pulse Discord. \n Please thank Jagrosh, KingOfDranovis, and Sheridan in the discord when you see them. \n Thank you for using this tool, you are part of an Awesome Club! \n PLEASE TURN ON YOUR GLOVES! \n");
+    printf("Hello World! \n This is the OpenPulse Converter. \n A simple tool to send tracking and haptic data between Bifrost Pulse Gloves and OpenGloves Driver. \n This is a community development from the Pulse Discord. \n Please thank Jagrosh, KingOfDranovis, and Sheridan in the discord when you see them. \n Thank you for using this tool, you are part of an Awesome Club! \n PLEASE TURN ON YOUR GLOVES! \n");
     system("pause");
     // initialize HID lib
     hid_init();
@@ -505,14 +508,19 @@ int main(int argc, char** argv)
 
 
     //Init Pipe and Opengloves connection
-    printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.");
+    printf("Attempting connection to OpenGloves Driver, please start SteamVR with OpG running, then continue with this plugin.\n");
     system("pause");
 
     //Init Right Pipe
-    OpG_Pipe<OpenGloveInputData> rightPipe(RIGHT_PIPE);
+    if (right.isValid()) {
+        right.openPipe(RIGHT_PIPE);
+
+    }
 
     //Init Left Pipe
-   // OpG_Pipe<OpenGloveInputData> leftPipe(LEFT_PIPE);
+    if (left.isValid()) {
+        left.openPipe(LEFT_PIPE);
+    }
 
     //Init our writable blocks
     OpenGloveInputData ogidR{};
@@ -539,15 +547,15 @@ int main(int argc, char** argv)
 
             ogidL = Tracking(left);
 
-        //   if (leftPipe.IsValid()) { //
-        //       //Write to the Left Pipes!!
-        //       leftPipe.Touch(ogidL);
-        //       LOG("wrote");
-        //       if (GetLastError()) {
-        //           DWORD errorCode = GetLastError();
-        //           std::cout << "bad error:__" << errorCode << std::endl;
-        //           debugPause;
-        //       };
+            if (left.pipeIsValid()) { //
+                //Write to the Left Pipes!!
+                left.Touch(ogidL);
+                LOG("wrote");
+                if (GetLastError()) {
+                    DWORD errorCode = GetLastError();
+                    std::cout << "bad error:__" << errorCode << std::endl;
+                    debugPause;
+                };
                 // Force Feedback Haptics----------------------
 
                 //ogodL = leftPipe.Feel();
@@ -562,9 +570,9 @@ int main(int argc, char** argv)
 
                 ogidR = Tracking(right);
 
-                if (rightPipe.IsValid()) { //
+                if (right.pipeIsValid()) { //
                     //Write to the Right Pipes!!
-                    rightPipe.Touch(ogidR);
+                    right.Touch(ogidR);
                     LOG("wrote");
                     if (GetLastError()) {
                         DWORD errorCode = GetLastError();
@@ -597,6 +605,7 @@ int main(int argc, char** argv)
 
 
     }
+}
 
 
 
