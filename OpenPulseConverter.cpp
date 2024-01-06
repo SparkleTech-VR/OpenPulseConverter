@@ -315,8 +315,8 @@ void Tracking(whatIsGlove glove) {
     ogid.flexion = flexion;
     ogid.splay = splay;
     //buttons to be emulated, trgValue, grab, menu; maybe pinch, joyx,joyY, maybe others as I care in games
-    //ogid.trgValue = indexPull; //example code for rest of buttons
-
+   // ogid.trgValue = indexPull; //example code for rest of buttons
+    ogid.grab = (ringPull > 11500);//Possible Grab
     glove.Touch(ogid);
     LOG("wrote");
     if (GetLastError()) {
