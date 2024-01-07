@@ -46,7 +46,7 @@ const int LEFT_GLOVE_PRODUCT_ID = 0xEEE1;
 typedef struct OpenGloveInputData
 {
 	std::array<std::array<float, 4>, 5> flexion;
-	std::array<float, 5> splay; // We are only using the Flex and Splay input with Pull and Splay respectively, OpG will emulate or have UI for all else
+	std::array<float, 5> splay; 
 	float joyX;
 	float joyY;
 	bool joyButton;
@@ -64,9 +64,9 @@ typedef struct OpenGloveInputData
 #pragma pack(push, 1)
 typedef struct FingerData
 {
-	//Grab data as native unsigned char from Pulse glove report buffer
-	unsigned int pull : 14;
-	unsigned int splay : 10;
+	//Grab data as native unsigned char from Pulse glove report buffer using bitfields to define the incoming data bitsize
+	unsigned char pull : 14;
+	unsigned char splay : 10;
 
 } FingerData;
 
@@ -147,7 +147,7 @@ public:
 				}
 			};
 
-			if (i == 9) { printf("Pipe about to timeout\n"); std::cout << "Named pipe created Attempt Ended." << std::endl; break; }
+			if (i == 9) { printf("Pipe about to timeout\n"); std::cout << "Named pipe Attempt Ended! NO NAMED PIPE WORKING!" << std::endl; break; }
 
 			if (GetLastError() != ERROR_PIPE_BUSY) {
 				std::cout << "bad error" << std::endl;
@@ -199,8 +199,8 @@ public:
 	 //OneEuroFilter vars
 		double frequency = 67; // Hz
 		double mincutoff = 1.0; // Hz
-		double beta = 1200; //Tolerance adjust for smoothness
-		double dcutoff = 1;//Timing don't mess with this one
+		double beta = 10; //Tolerance, adjust for smoothness
+		double dcutoff = 1;//Timing, don't mess with this one
 		std::cout << "timestamp,noisy,filtered" << std::endl;
 		OneEuroFilter f(frequency, mincutoff, beta, dcutoff);
 		// Get the current system time
@@ -221,7 +221,7 @@ public:
 			<< std::endl;
 
 
-		finT ParsedData{ filteredPull, filteredSplay };
+		finT ParsedData{ (int)filteredPull, (int)filteredSplay };
 
 		return ParsedData;
 	}
@@ -236,12 +236,7 @@ private:
 	// connection to glove
 	hid_device* m_handle;
 
-	//Init the finger Bytes -- not a snack 
-	unsigned int data0{};
-	unsigned int data1{};
-	unsigned int data1Pull{};
-	unsigned int data1Splay{};
-	unsigned int data2{};
+	//Init the finger Bytes -- not a snack!
 	unsigned int pullBits{};
 	unsigned int splayBits{};
 
@@ -314,7 +309,7 @@ void Tracking(whatIsGlove glove) {
 
 	// Create std::array for pull_buffer
 	std::array < std::array < float, 4 >, 5 > pull_buffer{};
-	for (int phalanx = 0; phalanx < 3; phalanx++) {
+	for (int phalanx = 0; phalanx < 4; phalanx++) {
 		pull_buffer[0][phalanx] = { glove.isCurled(thumbPull) };
 	}
 	for (int phalanx = 0; phalanx < 4; phalanx++) {
@@ -521,7 +516,7 @@ int main(int argc, char** argv)
 	MessageBox(NULL, WarningMB, title, MB_OK);
 
 
-	printf("Hello World! \n This is the OpenPulse Converter. \n A simple tool to send tracking and haptic data between Bifrost Pulse Gloves and OpenGloves Driver. \n This is a community development from the Pulse Discord. \n Please thank Jagrosh, KingOfDranovis, and Sheridan in the discord when you see them. \n Thank you for using this tool, you are part of an Awesome Club! \n PLEASE TURN ON YOUR GLOVES! \n");
+	printf("Hello World! \n This is the OpenPulse Converter. \n A simple tool to send tracking and haptic data between Bifrost Pulse Gloves and OpenGloves Driver. \n This is a community development from the Pulse Discord. \n Please thank Pixelmod, Jagrosh, N10A, KingOfDranovis, and Sheridan in the discord when you see them. \n Thank you for using this tool, you are part of an Awesome Club! \n PLEASE TURN ON YOUR GLOVES! \n");
 	system("pause");
 	// initialize HID lib
 	hid_init();
