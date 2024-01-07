@@ -115,6 +115,12 @@
       <AdditionalLibraryDirectories>$(ProjectDir)\dependencies\hidapi\x64\</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);hidapi.lib</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy .\dependencies\hidapi\x64\hidapi.dll "$(OutDir)"</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Copy hidapi DLL next to EXE</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
