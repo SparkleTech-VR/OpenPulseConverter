@@ -103,7 +103,7 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 
 public:
     whatIsGlove( // Derp, this is a Constructor
-        int vid, int pid) : m_wstring{}, m_handle{ hid_open(vid, pid, nullptr) },OgInput{}, m_ogPipe{}, r_buffer{} {}
+		int vid, int pid) : m_wstring{}, m_handle{ hid_open(vid, pid, nullptr) }, OgInput{}, m_ogPipe{}, r_buffer{} {}
     //virtual ~whatIsGlove() { hid_close(m_handle); }; //CAREFUL!!! THIS LEADS TO CRASH BEHAVIOR, I know destructors are proper code, however here we are cleaning with hid_exit
 
     // true if the glove is connected
@@ -165,7 +165,7 @@ public:
     const auto& Feel() { DWORD dwRead; bool returnCheck = ReadFile(m_ogPipe, reinterpret_cast<LPVOID>(&OgInput), sizeof(OutputStructure), &dwRead, NULL); if (returnCheck) { return OgInput; } else { OutputStructure trashzero{}; return trashzero; } };
     template <typename T>
     const bool Touch(const T& TrackingData) { DWORD dwWritten{}; return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL); };
-    const bool pipeIsValid() { return m_ogPipe; };
+	const bool pipeIsValid() const { return m_ogPipe; };
 
     void closePipe() {
         CloseHandle(m_ogPipe);
@@ -174,7 +174,7 @@ public:
     //Data Functions cause it's neater to shove them here
     const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.f); return sentFloat; };
     const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }
-    const finT BitData(const unsigned char data[3]) { //Took a big bong rip and figured out what I need to do
+	const finT BitData(const unsigned char data[3]) { //Took a big bong rip and figured out what I need to do
 
         data0 = data[0];//convert the incoming bytes into bitsets
         data1 = data[1];
@@ -217,9 +217,7 @@ public:
                 << std::endl;
         
 
-        finT ParsedData;
-        ParsedData.pull = filteredPull;
-        ParsedData.splay = filteredSplay;
+		finT ParsedData{ filteredPull, filteredSplay };
 
         return ParsedData;
     }
@@ -312,20 +310,20 @@ void Tracking(whatIsGlove glove) {
 
     // Create std::array for pull_buffer
     std::array < std::array < float, 4 >, 5 > pull_buffer{};
-    for (int t =0; t < 3; t++ ) {
-        pull_buffer[0][t] = {glove.isCurled(thumbPull)};
+	for (int phalanx = 0; phalanx < 3; phalanx++) {
+		pull_buffer[0][phalanx] = { glove.isCurled(thumbPull) };
     }
-    for (int i = 0; i < 4; i++) {
-        pull_buffer[1][i] = {glove.isCurled(indexPull)};
+	for (int phalanx = 0; phalanx < 4; phalanx++) {
+		pull_buffer[1][phalanx] = { glove.isCurled(indexPull) };
     }
-    for (int m = 0; m < 4; m++) {
-        pull_buffer[2][m] = {glove.isCurled(middlePull)};
+	for (int phalanx = 0; phalanx < 4; phalanx++) {
+		pull_buffer[2][phalanx] = { glove.isCurled(middlePull) };
     }
-    for (int r = 0; r < 4; r++) {
-        pull_buffer[3][r] = {glove.isCurled(ringPull)};
+	for (int phalanx = 0; phalanx < 4; phalanx++) {
+		pull_buffer[3][phalanx] = { glove.isCurled(ringPull) };
     }
-    for (int p = 0; p < 4; p++) {
-        pull_buffer[4][p] = {glove.isCurled(pinkyPull)};
+	for (int phalanx = 0; phalanx < 4; phalanx++) {
+		pull_buffer[4][phalanx] = { glove.isCurled(pinkyPull) };
     }
     
     
@@ -397,15 +395,15 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
     //We are going to use a naming convention to align our bytes easier
 
     int thumb0 = TOP_SpringPoint; //byte 0 uses a extension point at the finger tip to consistently give spring tension, more will increase tension, less will be springier; default: 25
-    int thumb1 = convertedThumb ; // Byte 1 uses 40th'd Data to adjust down along the force of OpG; Incoming 1000/40 = 25 <- your fingertip
+	int thumb1 = convertedThumb; // Byte 1 uses 40th'd Data to adjust down along the force of OpG; Incoming 1000/40 = 25 <- your fingertip
     int index0 = TOP_SpringPoint;
-    int index1 = convertedIndex ;
+	int index1 = convertedIndex;
     int middle0 = TOP_SpringPoint;
-    int middle1 = convertedMiddle ;
+	int middle1 = convertedMiddle;
     int ring0 = TOP_SpringPoint;
-    int ring1 = convertedRing ;
+	int ring1 = convertedRing;
     int pinky0 = TOP_SpringPoint;
-    int pinky1 = convertedPinky ;
+	int pinky1 = convertedPinky;
 
     // Output Report Creator
 
@@ -469,28 +467,28 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
     report[1] = Default_Range & 0xFF;
     report[2] = 0 & 0xFF;
     report[3] = 0 & 0xFF;
-    report[4] = 0  & 0xFF;
+	report[4] = 0 & 0xFF;
     // Index force feedback (B)
     report[5] = Default_Range & 0xFF;
-    report[6] = 0  & 0xFF;
+	report[6] = 0 & 0xFF;
     report[7] = 0 & 0xFF;
     report[8] = 0 & 0xFF;
 
     // Middle force feedback (C)
     report[9] = Default_Range & 0xFF;
-    report[10] = 0  & 0xFF;
+	report[10] = 0 & 0xFF;
     report[11] = 0 & 0xFF;
     report[12] = 0 & 0xFF;
     // Ring force feedback (D)
     report[13] = Default_Range & 0xFF;
-    report[14] = 0  & 0xFF;
+	report[14] = 0 & 0xFF;
     report[15] = 0 & 0xFF;
     report[16] = 0 & 0xFF;
     // Pinky force feedback (E)
     report[17] = Default_Range & 0xFF;
-    report[18] = 0  & 0xFF;
+	report[18] = 0 & 0xFF;
     report[19] = 0 & 0xFF;
-    report[20] = 0  & 0xFF;
+	report[20] = 0 & 0xFF;
 
     printf("Force:");
 
