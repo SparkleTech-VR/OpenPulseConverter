@@ -16,7 +16,7 @@
 #include <hidapi.h>
 #include <windows.h> 
 #include <cstring>
-
+#include<OneEuroFilter.h>
 
 
 
@@ -26,8 +26,9 @@
 
 
         //-----------------------Functions for gloves
-#define TOP_RANGE 64 //This is the top of the spring stop lowered in relation to the OpG data
-#define BOTTOM_RANGE 127 //Bottom of the spring
+#define FINGER_DRAG 3000 //This is your finger distance, the drag of string forever unmeasured because your fingers don't roll back to your knuckles
+#define TOP_SpringPoint 25 //This is the top of the spring stop extended to default: 25
+#define Default_Range 25 //use this to change the Default range on the reset report if you prefer a different tension 
 #define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
 #define DISPLAY(x) std::cout << "OpenPulse Converter:"<< x << std::endl;
 #define MAX_STR 255
@@ -111,17 +112,13 @@ public:
     //Glove Functions
    
      const auto& read() {
-
          if (m_handle != INVALID_HANDLE_VALUE) {
              auto result = hid_read(m_handle, r_buffer.buffer, 16);
              std::cout << "Handle being Read:" << &m_handle << std::endl;
              if (result == -1) {
                  const auto error = hid_error(m_handle);
                  std::cout << "Error while reading HID data: " << error << "Handle with bad Read:" << m_handle << std::endl;
-
              }
-             
-
              return r_buffer;
          }
      };
@@ -175,7 +172,8 @@ public:
     }
 
     //Data Functions cause it's neater to shove them here
-    const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.0f); return sentFloat; };
+    const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.f); return sentFloat; };
+    const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }
     const finT BitData(const unsigned char data[3]) { //Took a big bong rip and figured out what I need to do
 
         data0 = data[0];//convert the incoming bytes into bitsets
@@ -194,9 +192,34 @@ public:
         pullBits = (pullLow | pullFar);
         splayBits = (splayLow | splayFar);
 
+        //OneEuroFilter courtesy of https://github.com/casiez/OneEuroFilter
+         //OneEuroFilter vars
+        double frequency = 67; // Hz
+        double mincutoff = 1.0; // Hz
+        double beta = 1200; //Tolerance adjust for smoothness
+        double dcutoff = 1;//Timing don't mess with this one
+        std::cout << "timestamp,noisy,filtered" << std::endl;
+        OneEuroFilter f(frequency, mincutoff, beta, dcutoff);
+        // Get the current system time
+        auto currentTime = std::chrono::system_clock::now();
+    
+        double noisyPull = { (double)(pullBits - FINGER_DRAG) };
+        double noisySplay = { (double)splayBits };
+        double ts = { std::chrono::duration<double>(currentTime.time_since_epoch()).count() }; // Convert the system time to a double value
+        
+        double filteredPull = f.filter(noisyPull, ts);
+        double filteredSplay = f.filter(noisySplay, ts);
+            std::cout << ts << ","
+                << noisyPull << ","
+                << noisySplay << ","
+                << filteredPull << ","
+                << filteredSplay
+                << std::endl;
+        
+
         finT ParsedData;
-        ParsedData.pull = pullBits;
-        ParsedData.splay = splayBits;
+        ParsedData.pull = filteredPull;
+        ParsedData.splay = filteredSplay;
 
         return ParsedData;
     }
@@ -219,7 +242,7 @@ private:
     unsigned int data2{};
     unsigned int pullBits{};
     unsigned int splayBits{};
-
+   
     // temp vars
     wchar_t m_wstring[MAX_STR];
     HIDBuffer r_buffer;
@@ -227,14 +250,13 @@ private:
     OutputStructure OgInput{};
 };
 // Init Splay and Flex ; Init Tracking and Haptic Data
+// make all the variables for our data to get held in
 std::array<float, 5> splay;
 std::array<std::array<float, 4>, 5> flexion;
 unsigned char* HapticData;
 OpenGloveInputData ogid{};
-// make all the variables for our data to get held in
-const int HapticConvert(int input) { int output = input / 10 * 2.55; return output; }
 unsigned char report[21]; // Output Report Variable HID api 
-
+const int HapticConvert(int input) { int output = input / 40; return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard
 
 void Tracking(whatIsGlove glove) {
 
@@ -280,11 +302,11 @@ void Tracking(whatIsGlove glove) {
 
     // Create std::array for splay_buffer
     const std::array<float, 5> splay_buffer = {
-        (float)thumbSplay,
-        (float)indexSplay,
-        (float)middleSplay,
-        (float)ringSplay,
-        (float)pinkySplay
+        glove.splayNormalized(thumbSplay),
+        glove.splayNormalized(indexSplay),
+        glove.splayNormalized(middleSplay),
+        glove.splayNormalized(ringSplay),
+        glove.splayNormalized(pinkySplay)
     };
 
 
@@ -317,6 +339,7 @@ void Tracking(whatIsGlove glove) {
     //buttons to be emulated, trgValue, grab, menu; maybe pinch, joyx,joyY, maybe others as I care in games
    // ogid.trgValue = indexPull; //example code for rest of buttons
     ogid.grab = (ringPull > 11500);//Possible Grab
+    ogid.trgButton = (indexPull > 11500); //Possible Trg, might empty mags accidently
     glove.Touch(ogid);
     LOG("wrote");
     if (GetLastError()) {
@@ -373,16 +396,16 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
     //We are going to use a naming convention to align our bytes easier
 
-    int thumb0 = convertedThumb - TOP_RANGE; //byte 0 uses a magic number to consistently give a quarter spring tension, more will increase tension, less will be springier; default: 64
-    int thumb1 = convertedThumb - BOTTOM_RANGE; // Byte 1 uses the half range to adjust down along the force of OpG; default: 127
-    int index0 = convertedIndex - TOP_RANGE;
-    int index1 = convertedIndex - BOTTOM_RANGE;
-    int middle0 = convertedMiddle - TOP_RANGE;
-    int middle1 = convertedMiddle - BOTTOM_RANGE;
-    int ring0 = convertedRing - TOP_RANGE;
-    int ring1 = convertedRing - BOTTOM_RANGE;
-    int pinky0 = convertedPinky - TOP_RANGE;
-    int pinky1 = convertedPinky - BOTTOM_RANGE;
+    int thumb0 = TOP_SpringPoint; //byte 0 uses a extension point at the finger tip to consistently give spring tension, more will increase tension, less will be springier; default: 25
+    int thumb1 = convertedThumb ; // Byte 1 uses 40th'd Data to adjust down along the force of OpG; Incoming 1000/40 = 25 <- your fingertip
+    int index0 = TOP_SpringPoint;
+    int index1 = convertedIndex ;
+    int middle0 = TOP_SpringPoint;
+    int middle1 = convertedMiddle ;
+    int ring0 = TOP_SpringPoint;
+    int ring1 = convertedRing ;
+    int pinky0 = TOP_SpringPoint;
+    int pinky1 = convertedPinky ;
 
     // Output Report Creator
 
@@ -443,28 +466,28 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
     //Convert and store the data into the rest of the report
 
     // Thumb force feedback (A)
-    report[1] = 25 & 0xFF;
+    report[1] = Default_Range & 0xFF;
     report[2] = 0 & 0xFF;
     report[3] = 0 & 0xFF;
     report[4] = 0  & 0xFF;
     // Index force feedback (B)
-    report[5] = 25 & 0xFF;
+    report[5] = Default_Range & 0xFF;
     report[6] = 0  & 0xFF;
     report[7] = 0 & 0xFF;
     report[8] = 0 & 0xFF;
 
     // Middle force feedback (C)
-    report[9] = 25 & 0xFF;
+    report[9] = Default_Range & 0xFF;
     report[10] = 0  & 0xFF;
     report[11] = 0 & 0xFF;
     report[12] = 0 & 0xFF;
     // Ring force feedback (D)
-    report[13] = 25 & 0xFF;
+    report[13] = Default_Range & 0xFF;
     report[14] = 0  & 0xFF;
     report[15] = 0 & 0xFF;
     report[16] = 0 & 0xFF;
     // Pinky force feedback (E)
-    report[17] = 25 & 0xFF;
+    report[17] = Default_Range & 0xFF;
     report[18] = 0  & 0xFF;
     report[19] = 0 & 0xFF;
     report[20] = 0  & 0xFF;
