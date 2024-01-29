@@ -28,7 +28,7 @@
 
 
 		//-----------------------Functions for gloves
-#define FINGER_DRAG 3000 //This is your finger distance, the drag of string forever unmeasured because your fingers don't roll back to your knuckles
+#define FINGER_DRAG 8500  //This will become a variable and adjusted on startup in a future update
 #define TOP_SpringPoint 25 //This is the top of the spring stop extended to default: 25
 #define Default_Range 25 //use this to change the Default range on the reset report if you prefer a different tension 
 #define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
@@ -64,9 +64,9 @@ typedef struct OpenGloveInputData
 #pragma pack(push, 1)
 typedef struct FingerData
 {
-	//Grab data as native unsigned char from Pulse glove report buffer using bitfields to define the incoming data bitsize
-	unsigned char pull : 14;
-	unsigned char splay : 10;
+	//Grab data as native unsigned short(2 bytes we are bitfielding to prevent data overflow) from Pulse glove report buffer using bitfields to define the incoming data bitsize
+	unsigned short pull : 14;
+	unsigned short splay : 10;
 
 } FingerData;
 
@@ -97,9 +97,49 @@ typedef struct finT {
 	//Paired Data for Return needs
 	unsigned int pull;
 	unsigned int splay;
-}finT;
+} finT;
 
 #pragma pack(pop)
+
+class ExponentialFilter {
+private:
+	double alpha; // Weighting factor for the new data
+	double filteredValue; // The filtered value
+	double dataPoints[60]; // Array for holding the last 60 data points
+	int currentIndex; // Index to keep track of the current position in the array
+
+public:
+	ExponentialFilter(double initial, double alpha) : filteredValue(initial), alpha(alpha), currentIndex(0) {
+		for (int i = 0; i < 60; ++i) {
+			dataPoints[i] = initial;
+		}
+	}
+
+	double filter(double input) {
+	
+
+		dataPoints[currentIndex] = input; // Store the data point
+		currentIndex = (currentIndex + 1) % 60; // Update the current index for the circular buffer
+
+		double weightedSum = 0.0;
+		double weight = 1.0;
+		for (int i = 0; i < 60; ++i) {
+			weightedSum += dataPoints[i] * weight;
+			weight *= alpha; // Apply exponentially decreasing weight
+		}
+
+		filteredValue = weightedSum / 60;
+		return filteredValue;
+	}
+
+	
+
+	double* getDataPoints() {
+		return dataPoints;
+	}
+};  // We need to make one rq and start using this filter below
+
+ExponentialFilter ExpFilter(FINGER_DRAG, 0.85);
 
 class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 {
@@ -120,7 +160,7 @@ public:
 			std::cout << "Handle being Read:" << &m_handle << std::endl;
 			if (result == -1) {
 				const auto error = hid_error(m_handle);
-				std::cout << "Error while reading HID data: " << error << "Handle with bad Read:" << m_handle << std::endl;
+				std::cout << "Error while reading HID data: " << error << "||Handle with bad Read:" << m_handle << std::endl;
 			}
 			return r_buffer;
 		}
@@ -173,6 +213,7 @@ public:
 		}
 		else {
 			OutputStructure trashzero{};
+			DISPLAY("NO HAPTICS > BAD READ")
 			return trashzero;
 		}
 	};
@@ -191,7 +232,7 @@ public:
 	const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.f); return sentFloat; };
 	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }
 	const finT BitData(const FingerData& data) { //Took a big bong rip and figured out what I need to do
-		// Extracting the real numbers via the Binary OR function
+		// Extracting the real numbers via the Bitfield shorts
 		pullBits = data.pull;
 		splayBits = data.splay;
 
@@ -206,7 +247,7 @@ public:
 		// Get the current system time
 		auto currentTime = std::chrono::system_clock::now();
 
-		double noisyPull = (double)(pullBits - FINGER_DRAG);
+		double noisyPull = (double)pullBits;
 		double noisySplay = (double)splayBits;
 		double ts = std::chrono::duration<double>(currentTime.time_since_epoch()).count(); // Convert the system time to a double value
 
@@ -220,8 +261,11 @@ public:
 			<< filteredSplay
 			<< std::endl;
 
+		double smoothPull = ExpFilter.filter(filteredPull);
+		//double smoothSplay = ExpFilter.filter(filteredSplay); needs a slightly different filter for splay if needed at all
+		//This is an idea to use exponential smoothing to force the finger data to be more useful at the cost of some fidelity and lag
 
-		finT ParsedData{ (int)filteredPull, (int)filteredSplay };
+		finT ParsedData{ (int)smoothPull, (int)filteredSplay };
 
 		return ParsedData;
 	}
@@ -233,17 +277,15 @@ public:
 	const std::string getIndexedString(const int i) { hid_get_indexed_string(m_handle, i, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
 
 private:
-	// connection to glove
+	// connection to glove and pipe
 	hid_device* m_handle;
-
+	HANDLE m_ogPipe;
 	//Init the finger Bytes -- not a snack!
 	unsigned int pullBits{};
 	unsigned int splayBits{};
-
 	// temp vars
 	wchar_t m_wstring[MAX_STR];
 	HIDBuffer r_buffer;
-	HANDLE m_ogPipe;
 	OutputStructure OgInput{};
 };
 // Init Splay and Flex ; Init Tracking and Haptic Data
@@ -335,8 +377,10 @@ void Tracking(whatIsGlove glove) {
 	ogid.splay = splay;
 	//buttons to be emulated, trgValue, grab, menu; maybe pinch, joyx,joyY, maybe others as I care in games
    // ogid.trgValue = indexPull; //example code for rest of buttons
-	ogid.grab = (ringPull > 11500);//Possible Grab
+	ogid.grab = (ringPull > 11500 && pinkyPull > 11500);//Possible Grab
 	ogid.trgButton = (indexPull > 11500); //Possible Trg, might empty mags accidently
+	ogid.trgValue = indexPull - FINGER_DRAG;
+	
 	glove.Touch(ogid);
 	LOG("wrote");
 	if (GetLastError()) {
@@ -442,9 +486,9 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
 	HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
 
-	printf("%p", HapticData);
+	std::cout << HapticData << std::endl;
 
-	CR;
+	//CR;
 
 
 	glove.write(HapticData);//Feel the VR beneath your finger tips!
@@ -493,11 +537,6 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
 
 	HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
-
-	printf("%p", HapticData);
-
-	CR;
-
 
 	glove.write(HapticData);//GLOVE IS RESET FOR TRACKING
 
@@ -577,7 +616,7 @@ int main(int argc, char** argv)
 	OutputStructure ogodR{};
 	OutputStructure ogodL{};
 
-	printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck!\n");
+	printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck! REMEMBER TO START THE DATA STREAM BELOW!! \n");
 	system("pause");
 
 	//Below this line is only for runtime code; all startup code should be above this line-----------------------------------------------------
@@ -614,8 +653,6 @@ int main(int argc, char** argv)
 			Tracking(right);
 
 			if (right.pipeIsValid()) { //
-
-
 
 				// Force Feedback Haptics----------------------
 
