@@ -64,16 +64,21 @@ typedef struct OpenGloveInputData
 #pragma pack(push, 1)
 typedef struct FingerData
 {
-	//Grab data as native unsigned short(2 bytes we are bitfielding to prevent data overflow) from Pulse glove report buffer using bitfields to define the incoming data bitsize
+	//unsigned short(2 bytes we are bitfielding to prevent data overflow) from Pulse glove report buffer using bitfields to define the incoming data bitsize
 	unsigned short pull : 14;
 	unsigned short splay : 10;
 
 } FingerData;
+typedef struct FingerInputData
+{
+	//Grab data as native unsigned char[3] from Pulse glove report buffer 
+	unsigned char InputBuffer[3];
 
+} FingerInputData;
 typedef struct GloveInputReport
 {
 	unsigned char reportId : 8;
-	FingerData thumb, index, middle, ring, pinky;
+	FingerInputData thumb, index, middle, ring, pinky;
 } GloveInputReport;
 
 union HIDBuffer
@@ -146,7 +151,7 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 
 public:
 	whatIsGlove( // Derp, this is a Constructor
-		int vid, int pid) : m_wstring{}, m_handle{ hid_open(vid, pid, nullptr) }, OgInput{}, m_ogPipe{}, r_buffer{} {}
+		int vid, int pid) : m_wstring{}, m_handle{ hid_open(vid, pid, nullptr) },  m_ogPipe{}, r_buffer{} {}
 	//virtual ~whatIsGlove() { hid_close(m_handle); }; //CAREFUL!!! THIS LEADS TO CRASH BEHAVIOR, I know destructors are proper code, however here we are cleaning with hid_exit
 
 	// true if the glove is connected
@@ -206,14 +211,16 @@ public:
 
 	//OpenGlovesDriver Functions
 	const auto& Feel() {
+		LPVOID LPOGInput{};
 		DWORD dwRead;
-		bool returnCheck = ReadFile(m_ogPipe, reinterpret_cast<LPVOID>(&OgInput), sizeof(OutputStructure), &dwRead, NULL);
+		bool returnCheck = ReadFile(m_ogPipe, LPOGInput, sizeof(OutputStructure), &dwRead, NULL);
 		if (returnCheck) {
-			return OgInput;
+			return LPOGInput;
 		}
 		else {
-			OutputStructure trashzero{};
-			DISPLAY("NO HAPTICS > BAD READ")
+			LPVOID trashzero{};
+			auto error = GetLastError();
+			DISPLAY("NO HAPTICS > BAD READ" + error)
 			return trashzero;
 		}
 	};
@@ -231,18 +238,28 @@ public:
 	//Data Functions cause it's neater to shove them here
 	const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.f); return sentFloat; };
 	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }
-	const finT BitData(const FingerData& data) { //Took a big bong rip and figured out what I need to do
-		// Extracting the real numbers via the Bitfield shorts
-		pullBits = data.pull;
-		splayBits = data.splay;
-
+	const finT BitData( FingerInputData data) { //Took a big bong rip and figured out what I need to do
+		//FingerData Bits{};
+		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
+		Bits = reinterpret_cast<FingerData&>(data);
+		splayBits = Bits.splay;
+		pullBits = Bits.pull;
+		//     ________.
+		//	 /        / \
+		//	/ _______/ ` \
+		//	||| | |||| | |  <----The Onion Dicer with sample onion aboard
+		//	|||(_)|||| | |
+		//	|_|_|_|__| |/
+		//	|_|_|_|__| / 
+		//
+		//Sorry pix I made some workspace for my Onion dicer
 		//OneEuroFilter courtesy of https://github.com/casiez/OneEuroFilter
 	 //OneEuroFilter vars
 		double frequency = 67; // Hz
 		double mincutoff = 1.0; // Hz
 		double beta = 10; //Tolerance, adjust for smoothness
 		double dcutoff = 1;//Timing, don't mess with this one
-		std::cout << "timestamp,noisy,filtered" << std::endl;
+		std::cout << "timestamp,noisy,filtered,smooth" << std::endl;
 		OneEuroFilter f(frequency, mincutoff, beta, dcutoff);
 		// Get the current system time
 		auto currentTime = std::chrono::system_clock::now();
@@ -253,19 +270,23 @@ public:
 
 		double filteredPull = f.filter(noisyPull, ts);
 		double filteredSplay = f.filter(noisySplay, ts);
+		//double smoothPull = ExpFilter.filter(filteredPull);
+		//double smoothSplay = ExpFilter.filter(filteredSplay); needs a slightly different filter for splay if needed at all
+		//This is an idea to use exponential smoothing to force the finger data to be more useful at the cost of *significant* fidelity and lag
 		std::cout << std::setprecision(std::numeric_limits<double>::digits10)
 			<< ts << ","
+			<< pullBits << ","
+			<< splayBits << ","
 			<< noisyPull << ","
 			<< noisySplay << ","
 			<< filteredPull << ","
-			<< filteredSplay
+			<< filteredSplay <<","
+			//<< smoothPull
 			<< std::endl;
 
-		double smoothPull = ExpFilter.filter(filteredPull);
-		//double smoothSplay = ExpFilter.filter(filteredSplay); needs a slightly different filter for splay if needed at all
-		//This is an idea to use exponential smoothing to force the finger data to be more useful at the cost of some fidelity and lag
+		
 
-		finT ParsedData{ (int)smoothPull, (int)filteredSplay };
+		finT ParsedData{ (int)filteredPull, (int)filteredSplay };
 
 		return ParsedData;
 	}
@@ -281,12 +302,12 @@ private:
 	hid_device* m_handle;
 	HANDLE m_ogPipe;
 	//Init the finger Bytes -- not a snack!
+	FingerData Bits{};
 	unsigned int pullBits{};
 	unsigned int splayBits{};
 	// temp vars
 	wchar_t m_wstring[MAX_STR];
 	HIDBuffer r_buffer;
-	OutputStructure OgInput{};
 };
 // Init Splay and Flex ; Init Tracking and Haptic Data
 // make all the variables for our data to get held in
@@ -333,8 +354,8 @@ void Tracking(whatIsGlove glove) {
 
 	//test code to confirm we are getting the data we want
 
-	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.pull << ")"; printf("\n");
-	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.splay << ")"; // CR CR;
+	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.InputBuffer << ")"; printf("\n");
+	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.InputBuffer << ")"; // CR CR;
 
 
 	//The data structs for our finger buffer data
@@ -377,9 +398,10 @@ void Tracking(whatIsGlove glove) {
 	ogid.splay = splay;
 	//buttons to be emulated, trgValue, grab, menu; maybe pinch, joyx,joyY, maybe others as I care in games
    // ogid.trgValue = indexPull; //example code for rest of buttons
+	if (indexPull < FINGER_DRAG) { indexPull = 0; };
 	ogid.grab = (ringPull > 11500 && pinkyPull > 11500);//Possible Grab
 	ogid.trgButton = (indexPull > 11500); //Possible Trg, might empty mags accidently
-	ogid.trgValue = indexPull - FINGER_DRAG;
+	ogid.trgValue = indexPull;
 	
 	glove.Touch(ogid);
 	LOG("wrote");
@@ -390,29 +412,31 @@ void Tracking(whatIsGlove glove) {
 	};
 }
 
-void Haptics(OutputStructure ogod, whatIsGlove glove) {
+void Haptics(LPVOID ogod, whatIsGlove glove) {
 
 
 	//------FFB
-	const int f_buffer = ogod.B;//Oh Flying Spaghetti Monster, Bless this variable *Praise Be to his noodly goodness*
+	
+
+	// Step 1: Extract the values from the  incoming OutputStructure and assign them to the corresponding fields of the output structure
+
+	OutputStructure* outputData = reinterpret_cast<OutputStructure*>(&ogod);
+
+	//subStep 1: Show data
+	const int f_buffer = outputData->B;//Oh Flying Spaghetti Monster, Bless this variable *Praise Be to his noodly goodness*
 
 	//Check if we are receiving force
 
 	printf("%d \n", f_buffer);
-
-	// Step 1: Extract the values from the  incoming OutputStructure and assign them to the corresponding fields of the output structure
-
-	OutputStructure outputData = ogod;
-
 	// Step 2: Access the fields of the structure
-	int thumbForceFeedback = outputData.A;
-	int indexForceFeedback = outputData.B;
-	int middleForceFeedback = outputData.C;
-	int ringForceFeedback = outputData.D;
-	int pinkyForceFeedback = outputData.E;
-	float frequency = outputData.F;
-	float duration = outputData.G;//Not used by Pulse ; TODO: thought of a way we can use this by running a sleepfor on this timing
-	float amplitude = outputData.H;
+	int thumbForceFeedback =	outputData->A;
+	int indexForceFeedback =	outputData->B;
+	int middleForceFeedback =	outputData->C;
+	int ringForceFeedback =		outputData->D;
+	int pinkyForceFeedback =	outputData->E;
+	float frequency =			outputData->F;
+	float duration =			outputData->G;//Not used by Pulse ;DONE: thought of a way we can use this by running a sleepfor on this timing
+	float amplitude =			outputData->H;
 
 	// Now you have the output structure with the extracted values
 
@@ -464,7 +488,6 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
 	report[6] = index1 & 0xFF;
 	report[7] = convertedAmp & 0xFF;
 	report[8] = convertedFreq & 0xFF;
-
 	// Middle force feedback (C)
 	report[9] = middle0 & 0xFF;
 	report[10] = middle1 & 0xFF;
@@ -483,16 +506,13 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
 	printf("Force:");
 
-
 	HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
 
 	std::cout << HapticData << std::endl;
 
 	//CR;
 
-
 	glove.write(HapticData);//Feel the VR beneath your finger tips!
-
 
 	//TODO: Write a sleepfor on the duration G variable followed by a write call with a second output report as above but with 0's for the vibrations
 
@@ -516,7 +536,6 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
 	report[6] = 0 & 0xFF;
 	report[7] = 0 & 0xFF;
 	report[8] = 0 & 0xFF;
-
 	// Middle force feedback (C)
 	report[9] = Default_Range & 0xFF;
 	report[10] = 0 & 0xFF;
@@ -613,8 +632,8 @@ int main(int argc, char** argv)
 	}
 
 	//Init our writable blocks
-	OutputStructure ogodR{};
-	OutputStructure ogodL{};
+	LPVOID ogodR{};
+	LPVOID ogodL{};
 
 	printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck! REMEMBER TO START THE DATA STREAM BELOW!! \n");
 	system("pause");
@@ -681,7 +700,7 @@ int main(int argc, char** argv)
 
 
 
-//FFB math theory
+//FFB math theory-----------OLD just read the code don't rely on this
 
 // So A-E comes as 0-1000
 // divided /10 to get
