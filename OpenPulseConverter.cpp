@@ -67,7 +67,6 @@ typedef struct FingerData
 	//unsigned short(2 bytes we are bitfielding to prevent data overflow) from Pulse glove report buffer using bitfields to define the incoming data bitsize
 	unsigned short pull : 14;
 	unsigned short splay : 10;
-
 } FingerData;
 typedef struct FingerInputData
 {
@@ -211,14 +210,16 @@ public:
 
 	//OpenGlovesDriver Functions
 	const auto& Feel() {
-		LPVOID LPOGInput{};
+		char buffer[sizeof(OutputStructure)];
+		
 		DWORD dwRead;
-		bool returnCheck = ReadFile(m_ogPipe, LPOGInput, sizeof(OutputStructure), &dwRead, NULL);
+		bool returnCheck = ReadFile(m_ogPipe, buffer, sizeof(OutputStructure), &dwRead, NULL);
 		if (returnCheck) {
-			return LPOGInput;
+			OutputStructure OutData = reinterpret_cast<OutputStructure&>(buffer);
+			return OutData;
 		}
 		else {
-			LPVOID trashzero{};
+			OutputStructure trashzero{};
 			auto error = GetLastError();
 			DISPLAY("NO HAPTICS > BAD READ" + error)
 			return trashzero;
@@ -238,7 +239,7 @@ public:
 	//Data Functions cause it's neater to shove them here
 	const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.f); return sentFloat; };
 	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }
-	const finT BitData( FingerInputData data) { //Took a big bong rip and figured out what I need to do
+	const finT BitData(FingerInputData data) { //Took a big bong rip and figured out what I need to do
 		//FingerData Bits{};
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
 		Bits = reinterpret_cast<FingerData&>(data);
@@ -283,8 +284,6 @@ public:
 			<< filteredSplay <<","
 			//<< smoothPull
 			<< std::endl;
-
-		
 
 		finT ParsedData{ (int)filteredPull, (int)filteredSplay };
 
@@ -412,7 +411,7 @@ void Tracking(whatIsGlove glove) {
 	};
 }
 
-void Haptics(LPVOID ogod, whatIsGlove glove) {
+void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
 
 	//------FFB
@@ -420,23 +419,23 @@ void Haptics(LPVOID ogod, whatIsGlove glove) {
 
 	// Step 1: Extract the values from the  incoming OutputStructure and assign them to the corresponding fields of the output structure
 
-	OutputStructure* outputData = reinterpret_cast<OutputStructure*>(&ogod);
+	OutputStructure outputData = ogod;
 
 	//subStep 1: Show data
-	const int f_buffer = outputData->B;//Oh Flying Spaghetti Monster, Bless this variable *Praise Be to his noodly goodness*
+	const int f_buffer = outputData.B;//Oh Flying Spaghetti Monster, Bless this variable *Praise Be to his noodly goodness*
 
 	//Check if we are receiving force
 
 	printf("%d \n", f_buffer);
 	// Step 2: Access the fields of the structure
-	int thumbForceFeedback =	outputData->A;
-	int indexForceFeedback =	outputData->B;
-	int middleForceFeedback =	outputData->C;
-	int ringForceFeedback =		outputData->D;
-	int pinkyForceFeedback =	outputData->E;
-	float frequency =			outputData->F;
-	float duration =			outputData->G;//Not used by Pulse ;DONE: thought of a way we can use this by running a sleepfor on this timing
-	float amplitude =			outputData->H;
+	int thumbForceFeedback =	outputData.A;
+	int indexForceFeedback =	outputData.B;
+	int middleForceFeedback =	outputData.C;
+	int ringForceFeedback =		outputData.D;
+	int pinkyForceFeedback =	outputData.E;
+	float frequency =			outputData.F;
+	float duration =			outputData.G;//Not used by Pulse ;DONE: thought of a way we can use this by running a sleepfor on this timing
+	float amplitude =			outputData.H;
 
 	// Now you have the output structure with the extracted values
 
@@ -632,8 +631,8 @@ int main(int argc, char** argv)
 	}
 
 	//Init our writable blocks
-	LPVOID ogodR{};
-	LPVOID ogodL{};
+	OutputStructure ogodR{};
+	OutputStructure ogodL{};
 
 	printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck! REMEMBER TO START THE DATA STREAM BELOW!! \n");
 	system("pause");
