@@ -21,5 +21,19 @@
     <ClCompile Include="OneEuroFilter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="OldImpl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="InputTypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OPGData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ExponentialFilter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
