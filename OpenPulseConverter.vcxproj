@@ -141,6 +141,12 @@
   <ItemGroup>
     <ClCompile Include="OneEuroFilter.cpp" />
     <ClCompile Include="OpenPulseConverter.cpp" />
+    <ClCompile Include="OldImpl.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ExponentialFilter.h" />
+    <ClInclude Include="InputTypes.h" />
+    <ClInclude Include="OPGData.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

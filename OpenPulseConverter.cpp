@@ -1,12 +1,4 @@
-
-
-
-
 // Including code contributions by Jagrosh, https://github.com/jagrosh/Pulse2OpenGloves/blob/master/src/main.cpp Thanks mate
-
-
-
-
 #include <iostream>
 #include <array>
 #include <thread>
@@ -20,14 +12,11 @@
 #include <cstring>
 #include<OneEuroFilter.h>
 
+#include "InputTypes.h"
+#include "ExponentialFilter.h"
+#include "OPGData.h"
 
-
-
-
-
-
-
-		//-----------------------Functions for gloves
+//-----------------------Functions for gloves
 #define FINGER_DRAG 8500  //This will become a variable and adjusted on startup in a future update
 #define TOP_SpringPoint 25 //This is the top of the spring stop extended to default: 25
 #define Default_Range 25 //use this to change the Default range on the reset report if you prefer a different tension 
@@ -42,106 +31,12 @@ const int LEFT_GLOVE_PRODUCT_ID = 0xEEE1;
 #define RIGHT_PIPE  "\\\\.\\pipe\\vrapplication\\input\\glove\\v2\\right"
 #define LEFT_PIPE   "\\\\.\\pipe\\vrapplication\\input\\glove\\v2\\left"
 
-// OpenGlove data structures
-typedef struct OpenGloveInputData
-{
-	std::array<std::array<float, 4>, 5> flexion;
-	std::array<float, 5> splay; 
-	float joyX;
-	float joyY;
-	bool joyButton;
-	bool trgButton;
-	bool aButton;
-	bool bButton;
-	bool grab;
-	bool pinch;
-	bool menu;
-	bool calibrate;
-	float trgValue;
-} OpenGloveInputData;
-
-// Pulse data structures
-#pragma pack(push, 1)
-typedef struct FingerData
-{
-	//unsigned short(2 bytes we are bitfielding to prevent data overflow) from Pulse glove report buffer using bitfields to define the incoming data bitsize
-	unsigned short pull : 14;
-	unsigned short splay : 10;
-} FingerData;
-typedef struct FingerInputData
-{
-	//Grab data as native unsigned char[3] from Pulse glove report buffer 
-	unsigned char InputBuffer[3];
-
-} FingerInputData;
-typedef struct GloveInputReport
-{
-	unsigned char reportId : 8;
-	FingerInputData thumb, index, middle, ring, pinky;
-} GloveInputReport;
-
-union HIDBuffer
-{
-	GloveInputReport glove;
-	unsigned char buffer[sizeof(glove)];
-};
-
-typedef struct OutputStructure { //FFB output struct
-	int A;
-	int B;
-	int C;
-	int D;
-	int E;
-	float F;
-	float G;
-	float H;
-} OutputStructure;
-
 typedef struct finT {
 	//Paired Data for Return needs
 	unsigned int pull;
 	unsigned int splay;
 } finT;
 
-#pragma pack(pop)
-
-class ExponentialFilter {
-private:
-	double alpha; // Weighting factor for the new data
-	double filteredValue; // The filtered value
-	double dataPoints[60]; // Array for holding the last 60 data points
-	int currentIndex; // Index to keep track of the current position in the array
-
-public:
-	ExponentialFilter(double initial, double alpha) : filteredValue(initial), alpha(alpha), currentIndex(0) {
-		for (int i = 0; i < 60; ++i) {
-			dataPoints[i] = initial;
-		}
-	}
-
-	double filter(double input) {
-	
-
-		dataPoints[currentIndex] = input; // Store the data point
-		currentIndex = (currentIndex + 1) % 60; // Update the current index for the circular buffer
-
-		double weightedSum = 0.0;
-		double weight = 1.0;
-		for (int i = 0; i < 60; ++i) {
-			weightedSum += dataPoints[i] * weight;
-			weight *= alpha; // Apply exponentially decreasing weight
-		}
-
-		filteredValue = weightedSum / 60;
-		return filteredValue;
-	}
-
-	
-
-	double* getDataPoints() {
-		return dataPoints;
-	}
-};  // We need to make one rq and start using this filter below
 
 ExponentialFilter ExpFilter(FINGER_DRAG, 0.85);
 
@@ -149,8 +44,9 @@ class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 {
 
 public:
-	whatIsGlove( // Derp, this is a Constructor
-		int vid, int pid) : m_wstring{}, m_handle{ hid_open(vid, pid, nullptr) },  m_ogPipe{}, r_buffer{} {}
+	whatIsGlove(int vid, int pid) {
+		m_handle = hid_open(vid, pid, nullptr);
+	}
 	//virtual ~whatIsGlove() { hid_close(m_handle); }; //CAREFUL!!! THIS LEADS TO CRASH BEHAVIOR, I know destructors are proper code, however here we are cleaning with hid_exit
 
 	// true if the glove is connected
@@ -298,15 +194,15 @@ public:
 
 private:
 	// connection to glove and pipe
-	hid_device* m_handle;
+	hid_device* m_handle = nullptr;
 	HANDLE m_ogPipe;
 	//Init the finger Bytes -- not a snack!
 	FingerData Bits{};
 	unsigned int pullBits{};
 	unsigned int splayBits{};
 	// temp vars
-	wchar_t m_wstring[MAX_STR];
-	HIDBuffer r_buffer;
+	wchar_t m_wstring[MAX_STR] = {};
+	HIDBuffer r_buffer = {};
 };
 // Init Splay and Flex ; Init Tracking and Haptic Data
 // make all the variables for our data to get held in
@@ -696,67 +592,3 @@ int main(int argc, char** argv)
 	// close the hidapi library
 	return hid_exit();
 }
-
-
-
-//FFB math theory-----------OLD just read the code don't rely on this
-
-// So A-E comes as 0-1000
-// divided /10 to get
-// Percent%, round down for whole number
-// times x 2.55 for range
-// subtract 127 to adjust Byte 1 for endpoint 2
-// subtract 64 to adjust Byte 0 for endpoint 1
-// Encapsulate a 10 ms delay for bytes 2&3 to emulate duration
-// Byte2 is H x 255
-// Byte3 is F x 255
-
-
-//FFB LUCID INFO
-
-// "A" - Thumb force feedback. Integer from 0-1000
-// "B" - Index force feedback. Integer from 0-1000
-// "C" - Middle force feedback. Integer from 0-1000
-// "D" - Ring force feedback. Integer from 0-1000
-// "E" - Pinky force feedback. Integer from 0-1000
-// "F" - Frequency of haptic vibration. Decimal
-// "G" - Duration of haptic vibration. Decimal
-// "H" - Amplitude of haptic vibration. Decimal
-
-
-//Cool but deprecated code
-// 
-//   // Step 1: Create an LPCvoid pointer variable
-	//TrackingData; Done above;
-// 
-//        // Step 2: Allocate memory for the LPCvoid pointer
-//    TrackingData = malloc(sizeof(OpenGloveInputData));
-// 
-//    // Step 3: Copy the data from the original structure to the allocated memory
-//    memcpy((void*)TrackingData, &ogid, sizeof(OpenGloveInputData));
-// 
-//    // Step 4: Cast the allocated memory to LPCvoid
-//    LPCVOID convertedData = (LPCVOID)TrackingData;
-// 
-//    glove.Touch(convertedData); // TODO: write ogid to TrackingData --- DONE
-// 
-//    free((void*)TrackingData);// Dump the memory so we don't leak into the ram
-//
-// 
-// This was some test code to try resetting the handle if that became invalid---Test Failed
-//      //  if (m_handle == INVALID_HANDLE_VALUE) { printf("Attempting right glove reconnection with HID Handle; Please wait upto 0.1 seconds!\n");  r_buffer = {}; 
-//      while (m_handle == INVALID_HANDLE_VALUE) {
-//          m_handle = reOpen(VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID);
-//          if (m_handle != INVALID_HANDLE_VALUE) break;
-//          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-//      }
-//              };
-//      
-// 
-// 
-// 
-// 
-// 
-// 
-//  
-//
