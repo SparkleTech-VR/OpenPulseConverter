@@ -135,12 +135,12 @@ public:
 	//Data Functions cause it's neater to shove them here
 	const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.f); return sentFloat; };
 	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }
-	const finT BitData(FingerInputData data) { //Took a big bong rip and figured out what I need to do
+	const finT BitData(FingerData data) { //Took a big bong rip and figured out what I need to do
 		//FingerData Bits{};
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
 		Bits = reinterpret_cast<FingerData&>(data);
-		splayBits = Bits.splay;
-		pullBits = Bits.pull;
+		splayBits = Bits.getSplay();
+		pullBits = Bits.getPull();
 		//     ________.
 		//	 /        / \
 		//	/ _______/ ` \
@@ -249,8 +249,8 @@ void Tracking(whatIsGlove glove) {
 
 	//test code to confirm we are getting the data we want
 
-	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.InputBuffer << ")"; printf("\n");
-	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.InputBuffer << ")"; // CR CR;
+	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.getPull() << ")"; printf("\n");
+	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.getSplay() << ")"; // CR CR;
 
 
 	//The data structs for our finger buffer data

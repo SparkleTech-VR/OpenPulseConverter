@@ -4,20 +4,21 @@
 #pragma pack(push, 1)
 typedef struct FingerData
 {
-	//unsigned short(2 bytes we are bitfielding to prevent data overflow) from Pulse glove report buffer using bitfields to define the incoming data bitsize
-	unsigned short pull : 14;
-	unsigned short splay : 10;
-} FingerData;
-typedef struct FingerInputData
-{
-	//Grab data as native unsigned char[3] from Pulse glove report buffer 
-	unsigned char InputBuffer[3];
+	std::array<uint8_t, 3> bitData;
 
-} FingerInputData;
+	uint16_t getPull() const {
+		uint16_t pull = ((bitData[0] & 0b11111111) << 6) | ((bitData[1] & 0b11111100) >> 2);
+		return pull;
+	}
+	uint16_t getSplay() const {
+		uint16_t splay = ((bitData[1] & 0b00000011) << 8) | (bitData[2] & 0b11111111);
+		return splay;
+	}
+} FingerData;
 typedef struct GloveInputReport
 {
 	unsigned char reportId : 8;
-	FingerInputData thumb, index, middle, ring, pinky;
+	FingerData thumb, index, middle, ring, pinky;
 } GloveInputReport;
 
 union HIDBuffer
