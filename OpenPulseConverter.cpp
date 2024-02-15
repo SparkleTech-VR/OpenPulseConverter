@@ -1,4 +1,6 @@
 // Including code contributions by Jagrosh, https://github.com/jagrosh/Pulse2OpenGloves/blob/master/src/main.cpp Thanks mate
+// https://github.com/libusb/hidapi
+#include <hidapi.h>
 #include <iostream>
 #include <array>
 #include <thread>
@@ -6,18 +8,15 @@
 #include <cstdio>
 #include <iomanip>
 #include <limits>
-// https://github.com/libusb/hidapi
-#include <hidapi.h>
 #include <windows.h> 
 #include <cstring>
 #include<OneEuroFilter.h>
-
 #include "InputTypes.h"
 #include "ExponentialFilter.h"
 #include "OPGData.h"
 
-//-----------------------Functions for gloves
-#define FINGER_DRAG 8500  //This will become a variable and adjusted on startup in a future update
+
+//-----------------------Functions for gloves------------------------------
 #define TOP_SpringPoint 25 //This is the top of the spring stop extended to default: 25
 #define Default_Range 25 //use this to change the Default range on the reset report if you prefer a different tension 
 #define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
@@ -33,13 +32,94 @@ const int LEFT_GLOVE_PRODUCT_ID = 0xEEE1;
 
 typedef struct finT {
 	//Paired Data for Return needs
-	unsigned int pull;
-	unsigned int splay;
+	 int pull;
+	 int splay;
 } finT;
+float fistSum{};//b*tch
+int thumbDrag{};
+int indexDrag{};
+int middleDrag{};
+int ringDrag{};
+int pinkyDrag{};
+const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
+	DISPLAY(glove.getSerialNumber());
+	DISPLAY("CALIBRATION STARTING...");
+	int flattenThumbSum{};//b*tch
+	int flattenIndexSum{};//b*tch
+	int flattenMiddleSum{};//b*tch
+	int flattenRingSum{};//b*tch
+	int flattenPinkySum{};//b*tch
+	DISPLAY("Please FLATTEN your hand comfortably...");
+	for (int i{}; i < 6; i++) {
+		for (int l{}; l < 67; l++) {
+			//------Tracking
+			auto& buffer = glove.read();
 
+			// run the buffer to bit convert our data into the data struct
+			finT thumbTracking = glove.BitData(buffer.glove.thumb);
+			finT indexTracking = glove.BitData(buffer.glove.index);
+			finT middleTracking = glove.BitData(buffer.glove.middle);
+			finT ringTracking = glove.BitData(buffer.glove.ring);
+			finT pinkyTracking = glove.BitData(buffer.glove.pinky);
+			//Pulls from the paired Data
+			unsigned int thumbPull = thumbTracking.pull;
+			unsigned int indexPull = indexTracking.pull;
+			unsigned int middlePull = middleTracking.pull;
+			unsigned int ringPull = ringTracking.pull;
+			unsigned int pinkyPull = pinkyTracking.pull;
+			//Assign the flat Drag
+			thumbDrag =+ thumbPull;
+			indexDrag =+ indexPull;
+			middleDrag =+ middlePull;
+			ringDrag  =+ ringPull;
+			pinkyDrag =+ pinkyPull;
+			std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
+		}
+		flattenThumbSum=+ thumbDrag /67;
+		flattenIndexSum=+ indexDrag /67;
+		flattenMiddleSum=+ middleDrag/67;
+		flattenRingSum  =+ ringDrag  /67;
+		flattenPinkySum=+ pinkyDrag /67;
+		DISPLAY(i + "...");
+	}
+	thumbDrag  = flattenThumbSum/6;
+	indexDrag  = flattenIndexSum/6;
+	middleDrag = flattenMiddleSum/6;
+	ringDrag   = flattenRingSum/6;
+	pinkyDrag  = flattenPinkySum/6;
+	DISPLAY("Please CURL your hand into a FIST comfortably...")
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		int fistInterimSum{};
+		for (int i{}; i < 6; i++) {
+			for (int l{}; l < 67; l++) {
+				//------Tracking
+				auto& buffer = glove.read();
 
-ExponentialFilter ExpFilter(FINGER_DRAG, 0.85);
-
+				// run the buffer to bit convert our data into the data struct
+				finT thumbTracking = glove.BitData(buffer.glove.thumb);
+				finT indexTracking = glove.BitData(buffer.glove.index);
+				finT middleTracking = glove.BitData(buffer.glove.middle);
+				finT ringTracking = glove.BitData(buffer.glove.ring);
+				finT pinkyTracking = glove.BitData(buffer.glove.pinky);
+				//Pulls from the paired Data
+				unsigned int thumbPull = thumbTracking.pull;
+				unsigned int indexPull = indexTracking.pull;
+				unsigned int middlePull = middleTracking.pull;
+				unsigned int ringPull = ringTracking.pull;
+				unsigned int pinkyPull = pinkyTracking.pull;
+				fistInterimSum=+
+					thumbPull +
+					indexPull +
+					middlePull +
+					ringPull +
+					pinkyPull / 5;
+				std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
+			}
+			fistSum =+ fistInterimSum / 67;
+			DISPLAY(i + "...");
+		}
+	fistSum = fistSum / 6;
+};
 class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 {
 
@@ -133,12 +213,11 @@ public:
 	}
 
 	//Data Functions cause it's neater to shove them here
-	const float isCurled(int finData) { float sentFloat = ((float)finData / 16383.f); return sentFloat; };
-	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }
+	const float isCurled(int finData) { float sentFloat = std::abs(((float)finData / fistSum)-1); return sentFloat; }; //Set Fist Here for closed, small technical bug with the absolute inverter, OpG might or might not need the inverter
+	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }//Set Spread Here
 	const finT BitData(FingerData data) { //Took a big bong rip and figured out what I need to do
-		//FingerData Bits{};
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
-		Bits = reinterpret_cast<FingerData&>(data);
+		Bits = data;
 		splayBits = Bits.getSplay();
 		pullBits = Bits.getPull();
 		//     ________.
@@ -152,36 +231,36 @@ public:
 		//Sorry pix I made some workspace for my Onion dicer
 		//OneEuroFilter courtesy of https://github.com/casiez/OneEuroFilter
 	 //OneEuroFilter vars
-		double frequency = 67; // Hz
-		double mincutoff = 1.0; // Hz
-		double beta = 10; //Tolerance, adjust for smoothness
-		double dcutoff = 1;//Timing, don't mess with this one
-		std::cout << "timestamp,noisy,filtered,smooth" << std::endl;
-		OneEuroFilter f(frequency, mincutoff, beta, dcutoff);
-		// Get the current system time
-		auto currentTime = std::chrono::system_clock::now();
+		//double frequency = 67; // Hz
+		//double mincutoff = 1.0; // Hz
+		//double beta = 10; //Tolerance, adjust for smoothness
+		//double dcutoff = 1;//Timing, don't mess with this one
+		//std::cout << "timestamp,noisy,filtered,smooth" << std::endl;
+		//OneEuroFilter f(frequency, mincutoff, beta, dcutoff);
+		//// Get the current system time
+		//auto currentTime = std::chrono::system_clock::now();
+		//
+		//double noisyPull = (double)pullBits;
+		//double noisySplay = (double)splayBits;
+		//double ts = std::chrono::duration<double>(currentTime.time_since_epoch()).count(); // Convert the system time to a double value
+		//
+		//double filteredPull = f.filter(noisyPull, ts);
+		//double filteredSplay = f.filter(noisySplay, ts);
+		////double smoothPull = ExpFilter.filter(filteredPull);
+		////double smoothSplay = ExpFilter.filter(filteredSplay); needs a slightly different filter for splay if needed at all
+		////This is an idea to use exponential smoothing to force the finger data to be more useful at the cost of *significant* fidelity and lag
+		//std::cout << std::setprecision(std::numeric_limits<double>::digits10)
+		//	<< ts << ","
+		//	<< pullBits << ","
+		//	<< splayBits << ","
+		//	<< noisyPull << ","
+		//	<< noisySplay << ","
+		//	<< filteredPull << ","
+		//	<< filteredSplay <<","
+		//	//<< smoothPull
+		//	<< std::endl;
 
-		double noisyPull = (double)pullBits;
-		double noisySplay = (double)splayBits;
-		double ts = std::chrono::duration<double>(currentTime.time_since_epoch()).count(); // Convert the system time to a double value
-
-		double filteredPull = f.filter(noisyPull, ts);
-		double filteredSplay = f.filter(noisySplay, ts);
-		//double smoothPull = ExpFilter.filter(filteredPull);
-		//double smoothSplay = ExpFilter.filter(filteredSplay); needs a slightly different filter for splay if needed at all
-		//This is an idea to use exponential smoothing to force the finger data to be more useful at the cost of *significant* fidelity and lag
-		std::cout << std::setprecision(std::numeric_limits<double>::digits10)
-			<< ts << ","
-			<< pullBits << ","
-			<< splayBits << ","
-			<< noisyPull << ","
-			<< noisySplay << ","
-			<< filteredPull << ","
-			<< filteredSplay <<","
-			//<< smoothPull
-			<< std::endl;
-
-		finT ParsedData{ (int)filteredPull, (int)filteredSplay };
+		finT ParsedData{ (int)pullBits, (int)splayBits };
 
 		return ParsedData;
 	}
@@ -195,7 +274,7 @@ public:
 private:
 	// connection to glove and pipe
 	hid_device* m_handle = nullptr;
-	HANDLE m_ogPipe;
+	HANDLE m_ogPipe{};
 	//Init the finger Bytes -- not a snack!
 	FingerData Bits{};
 	unsigned int pullBits{};
@@ -204,14 +283,6 @@ private:
 	wchar_t m_wstring[MAX_STR] = {};
 	HIDBuffer r_buffer = {};
 };
-// Init Splay and Flex ; Init Tracking and Haptic Data
-// make all the variables for our data to get held in
-std::array<float, 5> splay;
-std::array<std::array<float, 4>, 5> flexion;
-unsigned char* HapticData;
-OpenGloveInputData ogid{};
-unsigned char report[21]; // Output Report Variable HID api 
-const int HapticConvert(int input) { int output = input / 40; return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard
 
 void Tracking(whatIsGlove glove) {
 
@@ -233,14 +304,13 @@ void Tracking(whatIsGlove glove) {
 
 
 	//Pulls from the paired Data
-	unsigned int thumbPull = thumbTracking.pull;
-	unsigned int indexPull = indexTracking.pull;
-	unsigned int middlePull = middleTracking.pull;
-	unsigned int ringPull = ringTracking.pull;
-	unsigned int pinkyPull = pinkyTracking.pull;
+	unsigned int thumbPull = max( (thumbTracking.pull - thumbDrag),0 );
+	unsigned int indexPull = max((indexTracking.pull - indexDrag),0);
+	unsigned int middlePull = max((middleTracking.pull - middleDrag), 0);
+	unsigned int ringPull = max((ringTracking.pull - ringDrag), 0);
+	unsigned int pinkyPull = max((pinkyTracking.pull - pinkyDrag), 0);
 
 	//Splays from the Paired Data
-	// 
 	unsigned int thumbSplay = thumbTracking.splay;
 	unsigned int indexSplay = indexTracking.splay;
 	unsigned int middleSplay = middleTracking.splay;
@@ -248,7 +318,6 @@ void Tracking(whatIsGlove glove) {
 	unsigned int pinkySplay = pinkyTracking.splay;
 
 	//test code to confirm we are getting the data we want
-
 	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.getPull() << ")"; printf("\n");
 	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.getSplay() << ")"; // CR CR;
 
@@ -282,21 +351,23 @@ void Tracking(whatIsGlove glove) {
 	for (int phalanx = 0; phalanx < 4; phalanx++) {
 		pull_buffer[4][phalanx] = { glove.isCurled(pinkyPull) };
 	}
-
-
+	// Init Splay and Flex
+	// make all the variables for our data to get held in
+	std::array<float, 5> splay;
+	std::array<std::array<float, 4>, 5> flexion;
 	splay = splay_buffer; //Semantics for readability -- no impact on performance
 	flexion = pull_buffer;
 
-
+	OpenGloveInputData ogid{};
 	//Write your Input data to ogid
 	ogid.flexion = flexion;
 	ogid.splay = splay;
-	//buttons to be emulated, trgValue, grab, menu; maybe pinch, joyx,joyY, maybe others as I care in games
-   // ogid.trgValue = indexPull; //example code for rest of buttons
-	if (indexPull < FINGER_DRAG) { indexPull = 0; };
-	ogid.grab = (ringPull > 11500 && pinkyPull > 11500);//Possible Grab
-	ogid.trgButton = (indexPull > 11500); //Possible Trg, might empty mags accidently
-	ogid.trgValue = indexPull;
+	//buttons to be emulated, menu, joyx,joyY, maybe others as I care in games
+	ogid.grab = (ringPull > (11500 - ringDrag) && pinkyPull > (11500 - pinkyDrag));//Possible Grab
+	ogid.trgButton = (indexPull > (11500 - indexDrag)); //Possible Trg, might empty mags accidently
+	ogid.trgValue = indexPull ; //example code for rest of buttons
+	ogid.aButton = thumbPull > (11500 - thumbDrag);
+	ogid.pinch = thumbPull > (14000 - thumbDrag);
 	
 	glove.Touch(ogid);
 	LOG("wrote");
@@ -306,9 +377,10 @@ void Tracking(whatIsGlove glove) {
 		debugPause;
 	};
 }
-
+const int HapticConvert(int input) { int output = input / 40; return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard
 void Haptics(OutputStructure ogod, whatIsGlove glove) {
 
+	//--------When reading FFB Output Reports from the open pipe from Opengloves driver, Outputs are only triggered after sending input to the driver.
 
 	//------FFB
 	
@@ -366,6 +438,10 @@ void Haptics(OutputStructure ogod, whatIsGlove glove) {
 	int ring1 = convertedRing;
 	int pinky0 = TOP_SpringPoint;
 	int pinky1 = convertedPinky;
+
+	unsigned char* HapticData;
+
+	unsigned char report[21]; // Output Report Variable HID api 
 
 	// Output Report Creator
 
@@ -530,6 +606,21 @@ int main(int argc, char** argv)
 	OutputStructure ogodR{};
 	OutputStructure ogodL{};
 
+	printf("Please EQUIP YOUR GLOVE(S) NOW. Prepare for CALIBRATION! \n");
+	system("pause");
+//This is the Spread, Flatten, and Fist Variable setup
+	
+	//Calib Right
+	if (right.isValid()) {
+		DISPLAY("RIGHT GLOVE CALIBRATION...")
+		runCalibration(right);
+	}
+	//Calib Left
+	if (left.isValid()) {
+		DISPLAY("LEFT GLOVE CALIBRATION...")
+		runCalibration(left);
+	}
+
 	printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck! REMEMBER TO START THE DATA STREAM BELOW!! \n");
 	system("pause");
 
@@ -543,44 +634,28 @@ int main(int argc, char** argv)
 	{
 		if (left.isValid())
 		{
-
 			//Tracking---------------
-
 			Tracking(left);
-
 			if (left.pipeIsValid()) { //
-
 				// Force Feedback Haptics----------------------
-
 				ogodL = left.Feel();
 				if (&ogodL) {
 					Haptics(ogodL, left);
 				};
-
 			}
 		}
 		if (right.isValid())
 		{
-
 			//Tracking---------------
-
 			Tracking(right);
-
 			if (right.pipeIsValid()) { //
-
 				// Force Feedback Haptics----------------------
-
 				ogodR = right.Feel();
 				if (&ogodR) {
 					Haptics(ogodR, right);
 				};
-
 			}
-
-
-		};
-		//--------When writing FFB Output Reports from the open pipe reading from Opengloves driver, Outputs are only triggered after sending input to the driver.
-
+			};
 		 //Functions after the glove Data-------
 		std::this_thread::sleep_for(std::chrono::microseconds(1000000 / 67)); // 67 hz  <-- This is really cool
 
