@@ -41,85 +41,6 @@ int indexDrag{};
 int middleDrag{};
 int ringDrag{};
 int pinkyDrag{};
-const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
-	DISPLAY(glove.getSerialNumber());
-	DISPLAY("CALIBRATION STARTING...");
-	int flattenThumbSum{};//b*tch
-	int flattenIndexSum{};//b*tch
-	int flattenMiddleSum{};//b*tch
-	int flattenRingSum{};//b*tch
-	int flattenPinkySum{};//b*tch
-	DISPLAY("Please FLATTEN your hand comfortably...");
-	for (int i{}; i < 6; i++) {
-		for (int l{}; l < 67; l++) {
-			//------Tracking
-			auto& buffer = glove.read();
-
-			// run the buffer to bit convert our data into the data struct
-			finT thumbTracking = glove.BitData(buffer.glove.thumb);
-			finT indexTracking = glove.BitData(buffer.glove.index);
-			finT middleTracking = glove.BitData(buffer.glove.middle);
-			finT ringTracking = glove.BitData(buffer.glove.ring);
-			finT pinkyTracking = glove.BitData(buffer.glove.pinky);
-			//Pulls from the paired Data
-			unsigned int thumbPull = thumbTracking.pull;
-			unsigned int indexPull = indexTracking.pull;
-			unsigned int middlePull = middleTracking.pull;
-			unsigned int ringPull = ringTracking.pull;
-			unsigned int pinkyPull = pinkyTracking.pull;
-			//Assign the flat Drag
-			thumbDrag =+ thumbPull;
-			indexDrag =+ indexPull;
-			middleDrag =+ middlePull;
-			ringDrag  =+ ringPull;
-			pinkyDrag =+ pinkyPull;
-			std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
-		}
-		flattenThumbSum=+ thumbDrag /67;
-		flattenIndexSum=+ indexDrag /67;
-		flattenMiddleSum=+ middleDrag/67;
-		flattenRingSum  =+ ringDrag  /67;
-		flattenPinkySum=+ pinkyDrag /67;
-		DISPLAY(i + "...");
-	}
-	thumbDrag  = flattenThumbSum/6;
-	indexDrag  = flattenIndexSum/6;
-	middleDrag = flattenMiddleSum/6;
-	ringDrag   = flattenRingSum/6;
-	pinkyDrag  = flattenPinkySum/6;
-	DISPLAY("Please CURL your hand into a FIST comfortably...")
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-		int fistInterimSum{};
-		for (int i{}; i < 6; i++) {
-			for (int l{}; l < 67; l++) {
-				//------Tracking
-				auto& buffer = glove.read();
-
-				// run the buffer to bit convert our data into the data struct
-				finT thumbTracking = glove.BitData(buffer.glove.thumb);
-				finT indexTracking = glove.BitData(buffer.glove.index);
-				finT middleTracking = glove.BitData(buffer.glove.middle);
-				finT ringTracking = glove.BitData(buffer.glove.ring);
-				finT pinkyTracking = glove.BitData(buffer.glove.pinky);
-				//Pulls from the paired Data
-				unsigned int thumbPull = thumbTracking.pull;
-				unsigned int indexPull = indexTracking.pull;
-				unsigned int middlePull = middleTracking.pull;
-				unsigned int ringPull = ringTracking.pull;
-				unsigned int pinkyPull = pinkyTracking.pull;
-				fistInterimSum=+
-					thumbPull +
-					indexPull +
-					middlePull +
-					ringPull +
-					pinkyPull / 5;
-				std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
-			}
-			fistSum =+ fistInterimSum / 67;
-			DISPLAY(i + "...");
-		}
-	fistSum = fistSum / 6;
-};
 class whatIsGlove //baby, Don't hurt me, don't hurt me; no mo'
 {
 
@@ -137,8 +58,8 @@ public:
 	const auto& read() {
 		if (m_handle != INVALID_HANDLE_VALUE) {
 			auto result = hid_read(m_handle, r_buffer.buffer, 16);
-			std::cout << "Handle being Read:" << &m_handle << std::endl;
 			if (result == -1) {
+			std::cout << "Handle being Read:" << &m_handle << std::endl;
 				const auto error = hid_error(m_handle);
 				std::cout << "Error while reading HID data: " << error << "||Handle with bad Read:" << m_handle << std::endl;
 			}
@@ -213,7 +134,7 @@ public:
 	}
 
 	//Data Functions cause it's neater to shove them here
-	const float isCurled(int finData) { float sentFloat = std::abs(((float)finData / fistSum)-1); return sentFloat; }; //Set Fist Here for closed, small technical bug with the absolute inverter, OpG might or might not need the inverter
+	const float isCurled(int finData) { float sentFloat = ((float)finData / fistSum); return sentFloat; }; //Set Fist Here for closed, small technical bug with the absolute inverter, OpG might or might not need the inverter
 	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }//Set Spread Here
 	const finT BitData(FingerData data) { //Took a big bong rip and figured out what I need to do
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
@@ -282,6 +203,85 @@ private:
 	// temp vars
 	wchar_t m_wstring[MAX_STR] = {};
 	HIDBuffer r_buffer = {};
+};
+const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
+	DISPLAY(glove.getSerialNumber());
+	DISPLAY("CALIBRATION STARTING...");
+	int flattenThumbSum{};//b*tch
+	int flattenIndexSum{};//b*tch
+	int flattenMiddleSum{};//b*tch
+	int flattenRingSum{};//b*tch
+	int flattenPinkySum{};//b*tch
+	DISPLAY("Please FLATTEN your hand comfortably...");
+	for (int i{}; i < 6; i++) {
+		for (int l{}; l < 67; l++) {
+			//------Tracking
+			auto& buffer = glove.read();
+
+			// run the buffer to bit convert our data into the data struct
+			finT thumbTracking = glove.BitData(buffer.glove.thumb);
+			finT indexTracking = glove.BitData(buffer.glove.index);
+			finT middleTracking = glove.BitData(buffer.glove.middle);
+			finT ringTracking = glove.BitData(buffer.glove.ring);
+			finT pinkyTracking = glove.BitData(buffer.glove.pinky);
+			//Pulls from the paired Data
+			unsigned int thumbPull = thumbTracking.pull;
+			unsigned int indexPull = indexTracking.pull;
+			unsigned int middlePull = middleTracking.pull;
+			unsigned int ringPull = ringTracking.pull;
+			unsigned int pinkyPull = pinkyTracking.pull;
+			//Assign the flat Drag
+			thumbDrag += thumbPull;
+			indexDrag  += indexPull;
+			middleDrag += middlePull;
+			ringDrag   += ringPull;
+			pinkyDrag  += pinkyPull;
+			std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
+		}
+		flattenThumbSum += thumbDrag /67;
+		flattenIndexSum += indexDrag /67;
+		flattenMiddleSum+= middleDrag/67;
+		flattenRingSum  += ringDrag  /67;
+		flattenPinkySum += pinkyDrag /67;
+		DISPLAY(i + "...");
+	}
+	thumbDrag  = flattenThumbSum/6;
+	indexDrag  = flattenIndexSum/6;
+	middleDrag = flattenMiddleSum/6;
+	ringDrag   = flattenRingSum/6;
+	pinkyDrag  = flattenPinkySum/6;
+	DISPLAY("Please CURL your hand into a FIST comfortably...")
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		int fistInterimSum{};
+		for (int i{}; i < 6; i++) {
+			for (int l{}; l < 67; l++) {
+				//------Tracking
+				auto& buffer = glove.read();
+
+				// run the buffer to bit convert our data into the data struct
+				finT thumbTracking = glove.BitData(buffer.glove.thumb);
+				finT indexTracking = glove.BitData(buffer.glove.index);
+				finT middleTracking = glove.BitData(buffer.glove.middle);
+				finT ringTracking = glove.BitData(buffer.glove.ring);
+				finT pinkyTracking = glove.BitData(buffer.glove.pinky);
+				//Pulls from the paired Data
+				unsigned int thumbPull = thumbTracking.pull;
+				unsigned int indexPull = indexTracking.pull;
+				unsigned int middlePull = middleTracking.pull;
+				unsigned int ringPull = ringTracking.pull;
+				unsigned int pinkyPull = pinkyTracking.pull;
+				fistInterimSum+=
+					thumbPull +
+					indexPull +
+					middlePull +
+					ringPull +
+					pinkyPull / 5;
+				std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
+			}
+			fistSum += fistInterimSum / 67;
+			DISPLAY(i + "...");
+		}
+	fistSum = fistSum / 6;
 };
 
 void Tracking(whatIsGlove glove) {
@@ -606,7 +606,7 @@ int main(int argc, char** argv)
 	OutputStructure ogodR{};
 	OutputStructure ogodL{};
 
-	printf("Please EQUIP YOUR GLOVE(S) NOW. Prepare for CALIBRATION! \n");
+	printf("Please EQUIP YOUR GLOVE(s) NOW. Prepare for CALIBRATION! \n");
 	system("pause");
 //This is the Spread, Flatten, and Fist Variable setup
 	
