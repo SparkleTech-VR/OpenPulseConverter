@@ -35,7 +35,26 @@ typedef struct finT {
 	 int pull;
 	 int splay;
 } finT;
-float fistSum{};//b*tch
+//Calibration function and variables, side note:ordering is important here because Tracking, whatIsGlove, and runCalib use these
+unsigned int clamp(int value, int minT, int maxT) {
+	unsigned int yeet = max(minT, min(value,maxT));
+	return yeet;
+}
+int thumbPimp{};
+int indexPimp{};
+int middlePimp{};
+int ringPimp{};
+int pinkyPimp{};
+int thumbSpread{};
+int indexSpread{};
+int middleSpread{};
+int ringSpread{};
+int pinkySpread{};
+int thumbFist{};
+int indexFist{};
+int middleFist{};
+int ringFist{};
+int pinkyFist{};
 int thumbDrag{};
 int indexDrag{};
 int middleDrag{};
@@ -134,8 +153,8 @@ public:
 	}
 
 	//Data Functions cause it's neater to shove them here
-	const float isCurled(int finData) { float sentFloat = ((float)finData / fistSum); return sentFloat; }; //Set Fist Here for closed, small technical bug with the absolute inverter, OpG might or might not need the inverter
-	const float splayNormalized(int finData) { float sentFloat = ((float)finData / 1023.f); return sentFloat; }//Set Spread Here
+	const float isCurled(int finData, int minFin, int maxFin) { float sentFloat = (((float)finData-(float)minFin) / ((float)maxFin-(float)minFin)); return sentFloat; }; 
+	const float splayNormalized(int finData, int minFin, int maxFin) { float sentFloat = (((float)finData - (float)minFin) / ((float)maxFin - (float)minFin)); return sentFloat; };
 	const finT BitData(FingerData data) { //Took a big bong rip and figured out what I need to do
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
 		Bits = data;
@@ -205,16 +224,67 @@ private:
 	HIDBuffer r_buffer = {};
 };
 const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
+	int secAvg = 5;
+	int inSecAvg{ 67 };
 	DISPLAY(glove.getSerialNumber());
 	DISPLAY("CALIBRATION STARTING...");
+	int thumbSpreadSum {};
+	int indexSpreadSum {};
+	int middleSpreadSum{};
+	int ringSpreadSum  {};
+	int pinkySpreadSum {};
+	DISPLAY("Please SPREAD your hand comfortably...");
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	for (int i{ secAvg }; i > 0; i--) {
+		for (int l{}; l < inSecAvg; l++) {
+			//------Tracking
+			auto& buffer = glove.read();
+
+			// run the buffer to bit convert our data into the data struct
+			finT thumbTracking = glove.BitData(buffer.glove.thumb);
+			finT indexTracking = glove.BitData(buffer.glove.index);
+			finT middleTracking = glove.BitData(buffer.glove.middle);
+			finT ringTracking = glove.BitData(buffer.glove.ring);
+			finT pinkyTracking = glove.BitData(buffer.glove.pinky);
+			//Splays from the paired Data
+			unsigned int thumbSplay = thumbTracking.splay;
+			unsigned int indexSplay = indexTracking.splay;
+			unsigned int middleSplay=middleTracking.splay;
+			unsigned int  ringSplay =   ringTracking.splay;
+			unsigned int pinkySplay = pinkyTracking.splay;
+			//Assign the flat Spread
+			  thumbSpread  += thumbSplay;
+			  indexSpread  += indexSplay;
+			 middleSpread += middleSplay;
+			   ringSpread   += ringSplay;
+			  pinkySpread  += pinkySplay;
+			std::this_thread::sleep_for(std::chrono::seconds(1 / inSecAvg));
+		}
+		thumbSpreadSum  += thumbSpread  /inSecAvg;
+		indexSpreadSum  += indexSpread  /inSecAvg;
+		middleSpreadSum += middleSpread/inSecAvg;
+		ringSpreadSum   += ringSpread	  /inSecAvg;
+		pinkySpreadSum  += pinkySpread  /inSecAvg; 
+	}
+	thumbSpread	= thumbSpreadSum/ secAvg;
+	indexSpread	= indexSpreadSum/ secAvg;
+	middleSpread= middleSpreadSum/ secAvg;
+	ringSpread	= ringSpreadSum/ secAvg;
+	pinkySpread = pinkySpreadSum/ secAvg;
+	int pimpThumbSum{};//b*tch
+	int pimpIndexSum{};//b*tch
+	int pimpMiddleSum{};//b*tch
+	int pimpRingSum{};//b*tch
+	int pimpPinkySum{};//b*tch
 	int flattenThumbSum{};//b*tch
 	int flattenIndexSum{};//b*tch
 	int flattenMiddleSum{};//b*tch
 	int flattenRingSum{};//b*tch
 	int flattenPinkySum{};//b*tch
 	DISPLAY("Please FLATTEN your hand comfortably...");
-	for (int i{}; i < 6; i++) {
-		for (int l{}; l < 67; l++) {
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	for (int i{secAvg}; i > 0; i--) {
+		for (int l{}; l < inSecAvg; l++) {
 			//------Tracking
 			auto& buffer = glove.read();
 
@@ -236,25 +306,51 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 			middleDrag += middlePull;
 			ringDrag   += ringPull;
 			pinkyDrag  += pinkyPull;
-			std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
+			//Splays from the paired Data
+			unsigned int thumbSplay = thumbTracking.splay;
+			unsigned int indexSplay = indexTracking.splay;
+			unsigned int middleSplay = middleTracking.splay;
+			unsigned int  ringSplay = ringTracking.splay;
+			unsigned int pinkySplay = pinkyTracking.splay;
+			//Assign the flat Pimp
+			 thumbPimp += thumbSplay;
+			 indexPimp += indexSplay;
+			middlePimp += middleSplay;
+			  ringPimp += ringSplay;
+			 pinkyPimp += pinkySplay;
+			std::this_thread::sleep_for(std::chrono::seconds(1 / inSecAvg));
 		}
-		flattenThumbSum += thumbDrag /67;
-		flattenIndexSum += indexDrag /67;
-		flattenMiddleSum+= middleDrag/67;
-		flattenRingSum  += ringDrag  /67;
-		flattenPinkySum += pinkyDrag /67;
-		DISPLAY(i + "...");
+		flattenThumbSum += thumbDrag /inSecAvg;
+		flattenIndexSum += indexDrag /inSecAvg;
+		flattenMiddleSum+= middleDrag/inSecAvg;
+		flattenRingSum  += ringDrag  /inSecAvg;
+		flattenPinkySum += pinkyDrag /inSecAvg;
+		pimpThumbSum += thumbPimp/inSecAvg;
+		pimpIndexSum += indexPimp/inSecAvg;
+		pimpMiddleSum += middlePimp/inSecAvg;
+		pimpRingSum  += ringPimp/inSecAvg;
+		pimpPinkySum += pinkyPimp/inSecAvg;
+		DISPLAY(i << "...");
 	}
-	thumbDrag  = flattenThumbSum/6;
-	indexDrag  = flattenIndexSum/6;
-	middleDrag = flattenMiddleSum/6;
-	ringDrag   = flattenRingSum/6;
-	pinkyDrag  = flattenPinkySum/6;
+	thumbDrag  = flattenThumbSum /secAvg;
+	indexDrag  = flattenIndexSum /secAvg;
+	middleDrag = flattenMiddleSum/secAvg;
+	ringDrag   = flattenRingSum  /secAvg;
+	pinkyDrag  = flattenPinkySum /secAvg;
+	thumbPimp  = pimpThumbSum/secAvg;
+	indexPimp  = pimpIndexSum/secAvg;
+	middlePimp = pimpMiddleSum/secAvg;
+	ringPimp   = pimpRingSum/secAvg;
+	pinkyPimp  = pimpPinkySum/secAvg;
 	DISPLAY("Please CURL your hand into a FIST comfortably...")
 		std::this_thread::sleep_for(std::chrono::seconds(1));
-		int fistInterimSum{};
-		for (int i{}; i < 6; i++) {
-			for (int l{}; l < 67; l++) {
+		int thumbFistSum{};
+		int indexFistSum{};
+		int middleFistSum{};
+		int ringFistSum{};
+		int pinkyFistSum{};
+		for (int i{ secAvg }; i > 0; i--) {
+			for (int l{}; l < inSecAvg; l++) {
 				//------Tracking
 				auto& buffer = glove.read();
 
@@ -270,18 +366,29 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 				unsigned int middlePull = middleTracking.pull;
 				unsigned int ringPull = ringTracking.pull;
 				unsigned int pinkyPull = pinkyTracking.pull;
-				fistInterimSum+=
-					thumbPull +
-					indexPull +
-					middlePull +
-					ringPull +
-					pinkyPull / 5;
-				std::this_thread::sleep_for(std::chrono::seconds(1 / 67));
+				//Assign the curled Fist
+				 thumbFist += thumbPull;
+				 indexFist += indexPull;
+				middleFist += middlePull;
+				  ringFist += ringPull;
+				 pinkyFist += pinkyPull;
+				std::this_thread::sleep_for(std::chrono::seconds(1 / inSecAvg));
 			}
-			fistSum += fistInterimSum / 67;
-			DISPLAY(i + "...");
+			thumbFistSum += thumbFist / inSecAvg;
+			indexFistSum += indexFist / inSecAvg;
+			middleFistSum += middleFist / inSecAvg;
+			ringFistSum += ringFist / inSecAvg;
+			pinkyFistSum += pinkyFist / inSecAvg;
+			DISPLAY(i << "...");
 		}
-	fistSum = fistSum / 6;
+		thumbFist += thumbFistSum/ secAvg;
+		indexFist += indexFistSum/ secAvg;
+		middleFist +=middleFistSum/ secAvg;
+		ringFist += ringFistSum / secAvg;
+		pinkyFist += pinkyFistSum/ secAvg;
+
+		DISPLAY("Index Drag:" << indexDrag << "Index Curl:" << indexFist << "Index Spread:" << indexSpread << "Index Pimp:" << indexPimp);
+		DISPLAY("Please confirm your index finger min and max seem normal. Pulse measures 0 when the finger string is fully pulled out of the module, and measures 10K when fully retracted into the module");
 };
 
 void Tracking(whatIsGlove glove) {
@@ -304,18 +411,18 @@ void Tracking(whatIsGlove glove) {
 
 
 	//Pulls from the paired Data
-	unsigned int thumbPull = max( (thumbTracking.pull - thumbDrag),0 );
-	unsigned int indexPull = max((indexTracking.pull - indexDrag),0);
-	unsigned int middlePull = max((middleTracking.pull - middleDrag), 0);
-	unsigned int ringPull = max((ringTracking.pull - ringDrag), 0);
-	unsigned int pinkyPull = max((pinkyTracking.pull - pinkyDrag), 0);
+	unsigned int thumbPull = clamp(thumbTracking.pull,thumbFist,thumbDrag);
+	unsigned int indexPull = clamp(indexTracking.pull,indexFist,indexDrag);
+	unsigned int middlePull = clamp(middleTracking.pull,middleFist,middleDrag);
+	unsigned int ringPull = clamp(ringTracking.pull,ringFist,ringDrag);
+	unsigned int pinkyPull = clamp(pinkyTracking.pull,pinkyFist,pinkyDrag);
 
 	//Splays from the Paired Data
-	unsigned int thumbSplay = thumbTracking.splay;
-	unsigned int indexSplay = indexTracking.splay;
-	unsigned int middleSplay = middleTracking.splay;
-	unsigned int ringSplay = ringTracking.splay;
-	unsigned int pinkySplay = pinkyTracking.splay;
+	unsigned int thumbSplay = clamp(thumbTracking.splay,thumbPimp,thumbSpread);
+	unsigned int indexSplay = clamp(indexTracking.splay,indexPimp,indexSpread);
+	unsigned int middleSplay =clamp(middleTracking.splay,middlePimp,middleSpread);
+	unsigned int ringSplay =  clamp(ringTracking.splay,ringPimp, ringSpread);
+	unsigned int pinkySplay = clamp(pinkyTracking.splay,pinkyPimp,pinkySpread);
 
 	//test code to confirm we are getting the data we want
 	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.getPull() << ")"; printf("\n");
@@ -326,30 +433,30 @@ void Tracking(whatIsGlove glove) {
 
 	// Create std::array for splay_buffer
 	const std::array<float, 5> splay_buffer = {
-		glove.splayNormalized(thumbSplay),
-		glove.splayNormalized(indexSplay),
-		glove.splayNormalized(middleSplay),
-		glove.splayNormalized(ringSplay),
-		glove.splayNormalized(pinkySplay)
+		glove.splayNormalized(thumbSplay,thumbPimp,thumbSpread),
+		glove.splayNormalized(indexSplay,indexPimp,indexSpread),
+		glove.splayNormalized(middleSplay,middlePimp,middleSpread),
+		glove.splayNormalized(ringSplay,ringPimp,ringSpread),
+		glove.splayNormalized(pinkySplay,pinkyPimp,pinkySpread)
 	};
 
 
 	// Create std::array for pull_buffer
 	std::array < std::array < float, 4 >, 5 > pull_buffer{};
 	for (int phalanx = 0; phalanx < 4; phalanx++) {
-		pull_buffer[0][phalanx] = { glove.isCurled(thumbPull) };
+		pull_buffer[0][phalanx] = { glove.isCurled(thumbPull,thumbFist,thumbDrag) };
 	}
 	for (int phalanx = 0; phalanx < 4; phalanx++) {
-		pull_buffer[1][phalanx] = { glove.isCurled(indexPull) };
+		pull_buffer[1][phalanx] = { glove.isCurled(indexPull,indexFist,indexDrag) };
 	}
 	for (int phalanx = 0; phalanx < 4; phalanx++) {
-		pull_buffer[2][phalanx] = { glove.isCurled(middlePull) };
+		pull_buffer[2][phalanx] = { glove.isCurled(middlePull,middleFist,middleDrag) };
 	}
 	for (int phalanx = 0; phalanx < 4; phalanx++) {
-		pull_buffer[3][phalanx] = { glove.isCurled(ringPull) };
+		pull_buffer[3][phalanx] = { glove.isCurled(ringPull,ringFist,ringDrag) };
 	}
 	for (int phalanx = 0; phalanx < 4; phalanx++) {
-		pull_buffer[4][phalanx] = { glove.isCurled(pinkyPull) };
+		pull_buffer[4][phalanx] = { glove.isCurled(pinkyPull,pinkyFist,pinkyDrag) };
 	}
 	// Init Splay and Flex
 	// make all the variables for our data to get held in
