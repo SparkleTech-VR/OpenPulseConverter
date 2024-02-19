@@ -35,11 +35,7 @@ typedef struct finT {
 	 int pull;
 	 int splay;
 } finT;
-//Calibration function and variables, side note:ordering is important here because Tracking, whatIsGlove, and runCalib use these
-unsigned int clamp(int value, int minT, int maxT) {
-	unsigned int yeet = max(minT, min(value,maxT));
-	return yeet;
-}
+//Calibration variables, side note:ordering is important here because Tracking, whatIsGlove, and runCalib use these
 int thumbPimp{};
 int indexPimp{};
 int middlePimp{};
@@ -153,8 +149,8 @@ public:
 	}
 
 	//Data Functions cause it's neater to shove them here
-	const float isCurled(int finData, int minFin, int maxFin) { float sentFloat = (((float)finData-(float)minFin) / ((float)maxFin-(float)minFin)); return sentFloat; }; 
-	const float splayNormalized(int finData, int minFin, int maxFin) { float sentFloat = (((float)finData - (float)minFin) / ((float)maxFin - (float)minFin)); return sentFloat; };
+	const float isCurled(int finData, int minFin, int maxFin) { float sentFloat = std::abs((((float)finData-(float)minFin) / ((float)maxFin-(float)minFin))-1); return sentFloat; }; 
+	const float splayNormalized(int finData, int minFin, int maxFin) { float sentFloat = std::abs((((float)finData - (float)minFin) / ((float)maxFin - (float)minFin)) - 1); return sentFloat; };
 	const finT BitData(FingerData data) { //Took a big bong rip and figured out what I need to do
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
 		Bits = data;
@@ -225,7 +221,8 @@ private:
 };
 const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 	int secAvg = 5;
-	int inSecAvg{ 67 };
+	int inSecAvg{ 67 }; 
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 	DISPLAY(glove.getSerialNumber());
 	DISPLAY("CALIBRATION STARTING...");
 	int thumbSpreadSum {};
@@ -258,19 +255,20 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 			 middleSpread += middleSplay;
 			   ringSpread   += ringSplay;
 			  pinkySpread  += pinkySplay;
-			std::this_thread::sleep_for(std::chrono::seconds(1 / inSecAvg));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / inSecAvg));
 		}
 		thumbSpreadSum  += thumbSpread  /inSecAvg;
 		indexSpreadSum  += indexSpread  /inSecAvg;
 		middleSpreadSum += middleSpread/inSecAvg;
 		ringSpreadSum   += ringSpread	  /inSecAvg;
 		pinkySpreadSum  += pinkySpread  /inSecAvg; 
+		DISPLAY(i << "...");
 	}
-	thumbSpread	= thumbSpreadSum/ secAvg;
-	indexSpread	= indexSpreadSum/ secAvg;
-	middleSpread= middleSpreadSum/ secAvg;
-	ringSpread	= ringSpreadSum/ secAvg;
-	pinkySpread = pinkySpreadSum/ secAvg;
+	thumbSpread	= (thumbSpreadSum/ secAvg) / 3;
+	indexSpread	= (indexSpreadSum/ secAvg) / 3;
+	middleSpread= (middleSpreadSum/ secAvg) / 3;
+	ringSpread	= (ringSpreadSum/ secAvg) / 3;
+	pinkySpread = (pinkySpreadSum/ secAvg) / 3;
 	int pimpThumbSum{};//b*tch
 	int pimpIndexSum{};//b*tch
 	int pimpMiddleSum{};//b*tch
@@ -318,7 +316,7 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 			middlePimp += middleSplay;
 			  ringPimp += ringSplay;
 			 pinkyPimp += pinkySplay;
-			std::this_thread::sleep_for(std::chrono::seconds(1 / inSecAvg));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / inSecAvg));
 		}
 		flattenThumbSum += thumbDrag /inSecAvg;
 		flattenIndexSum += indexDrag /inSecAvg;
@@ -332,16 +330,16 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 		pimpPinkySum += pinkyPimp/inSecAvg;
 		DISPLAY(i << "...");
 	}
-	thumbDrag  = flattenThumbSum /secAvg;
-	indexDrag  = flattenIndexSum /secAvg;
-	middleDrag = flattenMiddleSum/secAvg;
-	ringDrag   = flattenRingSum  /secAvg;
-	pinkyDrag  = flattenPinkySum /secAvg;
-	thumbPimp  = pimpThumbSum/secAvg;
-	indexPimp  = pimpIndexSum/secAvg;
-	middlePimp = pimpMiddleSum/secAvg;
-	ringPimp   = pimpRingSum/secAvg;
-	pinkyPimp  = pimpPinkySum/secAvg;
+	thumbDrag  = (flattenThumbSum /secAvg) / 3;
+	indexDrag  = (flattenIndexSum /secAvg) / 3;
+	middleDrag = (flattenMiddleSum/secAvg) / 3;
+	ringDrag   = (flattenRingSum  /secAvg) / 3;
+	pinkyDrag  = (flattenPinkySum /secAvg) / 3;
+	thumbPimp  = (pimpThumbSum/secAvg) / 3;
+	indexPimp  = (pimpIndexSum/secAvg) / 3;
+	middlePimp = (pimpMiddleSum/secAvg) / 3;
+	ringPimp   = (pimpRingSum/secAvg) / 3;
+	pinkyPimp  = (pimpPinkySum/secAvg) / 3;
 	DISPLAY("Please CURL your hand into a FIST comfortably...")
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		int thumbFistSum{};
@@ -372,7 +370,7 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 				middleFist += middlePull;
 				  ringFist += ringPull;
 				 pinkyFist += pinkyPull;
-				std::this_thread::sleep_for(std::chrono::seconds(1 / inSecAvg));
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000 / inSecAvg));
 			}
 			thumbFistSum += thumbFist / inSecAvg;
 			indexFistSum += indexFist / inSecAvg;
@@ -381,16 +379,17 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 			pinkyFistSum += pinkyFist / inSecAvg;
 			DISPLAY(i << "...");
 		}
-		thumbFist += thumbFistSum/ secAvg;
-		indexFist += indexFistSum/ secAvg;
-		middleFist +=middleFistSum/ secAvg;
-		ringFist += ringFistSum / secAvg;
-		pinkyFist += pinkyFistSum/ secAvg;
+		thumbFist = (thumbFistSum/ secAvg) / 3;
+		indexFist = (indexFistSum/ secAvg) / 3;
+		middleFist =(middleFistSum/ secAvg) / 3;
+		ringFist = (ringFistSum / secAvg) / 3;
+		pinkyFist = (pinkyFistSum/ secAvg)/3;
 
 		DISPLAY("Index Drag:" << indexDrag << "Index Curl:" << indexFist << "Index Spread:" << indexSpread << "Index Pimp:" << indexPimp);
 		DISPLAY("Please confirm your index finger min and max seem normal. Pulse measures 0 when the finger string is fully pulled out of the module, and measures 10K when fully retracted into the module");
+		printf("Please CONFIRM YOUR CALIBRATION! Do you need to repeat Calibaration? Y/N \n");
 };
-
+unsigned int clamp(int value, int minT, int maxT) {unsigned int yeet = max(minT, min(value,maxT));return yeet;}
 void Tracking(whatIsGlove glove) {
 
 	//------Tracking
@@ -470,11 +469,11 @@ void Tracking(whatIsGlove glove) {
 	ogid.flexion = flexion;
 	ogid.splay = splay;
 	//buttons to be emulated, menu, joyx,joyY, maybe others as I care in games
-	ogid.grab = (ringPull > (11500 - ringDrag) && pinkyPull > (11500 - pinkyDrag));//Possible Grab
-	ogid.trgButton = (indexPull > (11500 - indexDrag)); //Possible Trg, might empty mags accidently
-	ogid.trgValue = indexPull ; //example code for rest of buttons
-	ogid.aButton = thumbPull > (11500 - thumbDrag);
-	ogid.pinch = thumbPull > (14000 - thumbDrag);
+	ogid.grab = ((ogid.flexion[3][0]) > 0.75f) && ((ogid.flexion[4][0]) > 0.75f);//Possible Grab
+	ogid.trgButton = ((ogid.flexion[1][0]) > 0.75f); //Possible Trg, might empty mags accidently
+	ogid.trgValue = (ogid.flexion[1][0]); //example code for rest of buttons
+	ogid.aButton = ((ogid.flexion[0][0])>0.75f);
+	ogid.pinch = ((ogid.flexion[0][0]) > 0.90f);
 	
 	glove.Touch(ogid);
 	LOG("wrote");
@@ -716,18 +715,34 @@ int main(int argc, char** argv)
 	printf("Please EQUIP YOUR GLOVE(s) NOW. Prepare for CALIBRATION! \n");
 	system("pause");
 //This is the Spread, Flatten, and Fist Variable setup
+	char choice;
+	do {
+		
+		
+		std::cout << "Do you want to Begin the Calibration process? (Y/N): ";
+		std::cin >> choice;
+		if (choice == 'Y' || choice == 'y') {
+			//Calib Right
+			if (right.isValid()) {
+				DISPLAY("RIGHT GLOVE CALIBRATION...")
+					runCalibration(right);
+			}
+			//Calib Left
+			if (left.isValid()) {
+				DISPLAY("LEFT GLOVE CALIBRATION...")
+					runCalibration(left);
+			}
+			std::cout << "Repeating the process..." << std::endl;
+		}
+		else if (choice == 'N' || choice == 'n') {
+			std::cout << "Stopping the process." << std::endl;
+			break;  // Exit the loop
+		}
+		else {
+			std::cout << "Invalid input. Please enter Y or N." << std::endl;
+		}
+	} while (true);
 	
-	//Calib Right
-	if (right.isValid()) {
-		DISPLAY("RIGHT GLOVE CALIBRATION...")
-		runCalibration(right);
-	}
-	//Calib Left
-	if (left.isValid()) {
-		DISPLAY("LEFT GLOVE CALIBRATION...")
-		runCalibration(left);
-	}
-
 	printf("OpenPulse Primed for game pipes, please begin game boot flow and Good Luck! REMEMBER TO START THE DATA STREAM BELOW!! \n");
 	system("pause");
 
@@ -735,7 +750,7 @@ int main(int argc, char** argv)
 
 
 
-	// begin loop to run everything at 67hz
+	//begin loop to run everything at 67hz
 	//bool quit = false; // could be used for making a better exit experience
 	while (true)
 	{
