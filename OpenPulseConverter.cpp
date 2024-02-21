@@ -122,7 +122,7 @@ public:
 
 	//OpenGlovesDriver Functions
 	const auto& Feel() {
-		char buffer[sizeof(OutputStructure)];
+		char buffer[sizeof(OutputStructure)]{};
 		
 		DWORD dwRead;
 		bool returnCheck = ReadFile(m_ogPipe, buffer, sizeof(OutputStructure), &dwRead, NULL);
