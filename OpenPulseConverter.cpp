@@ -150,7 +150,7 @@ public:
 
 	//Data Functions cause it's neater to shove them here
 	const float isCurled(int finData, int minFin, int maxFin) { float sentFloat = std::abs((((float)finData-(float)minFin) / ((float)maxFin-(float)minFin))-1); return sentFloat; }; 
-	const float splayNormalized(int finData, int minFin, int maxFin) { float sentFloat = std::abs((((float)finData - (float)minFin) / ((float)maxFin - (float)minFin)) - 1); return sentFloat; };
+	const float splayNormalized(int finData, int minFin, int maxFin) { float sentFloat = (((float)finData - (float)minFin) / ((float)maxFin - (float)minFin)); return sentFloat; };
 	const finT BitData(FingerData data) { //Took a big bong rip and figured out what I need to do
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
 		Bits = data;
@@ -484,7 +484,7 @@ void Tracking(whatIsGlove glove) {
 	};
 }
 const int HapticConvert(int input) { int output = input / 40; return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard
-void Haptics(OutputStructure ogod, whatIsGlove glove) {
+void Haptics(const OutputStructure ogod, whatIsGlove glove) {
 
 	//--------When reading FFB Output Reports from the open pipe from Opengloves driver, Outputs are only triggered after sending input to the driver.
 
@@ -663,9 +663,12 @@ int main(int argc, char** argv)
 	// print diagnostics
 	if (!left.isValid() && !right.isValid())
 	{
-		printf("No gloves are connected!");
-		hid_exit();
+		DISPLAY("No gloves are connected!");
+		if (hid_error(NULL)) {
+			DISPLAY("REASON:" << hid_error(NULL))
+		}
 		system("pause");
+		hid_exit();
 		return 1;
 	}
 
