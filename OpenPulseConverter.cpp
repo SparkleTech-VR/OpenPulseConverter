@@ -123,17 +123,18 @@ public:
 	//OpenGlovesDriver Functions
 	const auto& Feel() {
 		char buffer[sizeof(OutputStructure)]{};
-		
+		std::array<char, sizeof(OutputStructure)> handoff{};
 		DWORD dwRead;
 		bool returnCheck = ReadFile(m_ogPipe, buffer, sizeof(OutputStructure), &dwRead, NULL);
 		if (returnCheck) {
-			OutputStructure OutData = reinterpret_cast<OutputStructure&>(buffer);
+			std::copy(std::begin(buffer), std::end(buffer), std::begin(handoff));
+			OutputStructure OutData = reinterpret_cast<OutputStructure&>(handoff);
 			return OutData;
 		}
 		else {
 			OutputStructure trashzero{};
 			auto error = GetLastError();
-			DISPLAY("NO HAPTICS > BAD READ" + error)
+			DISPLAY("NO HAPTICS > BAD READ" << error)
 			return trashzero;
 		}
 	};
