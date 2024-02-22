@@ -67,7 +67,7 @@ public:
 
 	// true if the glove is connected
 	const bool isValid() const { return m_handle; }
-
+	const auto& pipeHandle() const { return m_handle; }
 	//Glove Functions
 
 	const auto& read() {
@@ -123,10 +123,10 @@ public:
 	//OpenGlovesDriver Functions
 	const auto& Feel() {
 		char buffer[sizeof(OutputStructure)]{};
-		std::array<char, sizeof(OutputStructure)> handoff{};
 		DWORD dwRead;
 		bool returnCheck = ReadFile(m_ogPipe, buffer, sizeof(OutputStructure), &dwRead, NULL);
 		if (returnCheck) {
+			std::array<char, sizeof(OutputStructure)> handoff{};
 			std::copy(std::begin(buffer), std::end(buffer), std::begin(handoff));
 			OutputStructure OutData = reinterpret_cast<OutputStructure&>(handoff);
 			return OutData;
@@ -152,7 +152,7 @@ public:
 	//Data Functions cause it's neater to shove them here
 	const float isCurled(int finData, int minFin, int maxFin) { float sentFloat = std::abs((((float)finData-(float)minFin) / ((float)maxFin-(float)minFin))-1); return sentFloat; }; 
 	const float splayNormalized(int finData, int minFin, int maxFin) { float sentFloat = (((float)finData - (float)minFin) / ((float)maxFin - (float)minFin)); return sentFloat; };
-	const finT BitData(FingerData data) { //Took a big bong rip and figured out what I need to do
+	const finT BitData(const FingerData &data) { //Took a big bong rip and figured out what I need to do
 		// Extracting the real numbers via the Bitfield shorts aka OnionDicer
 		Bits = data;
 		splayBits = Bits.getSplay();
@@ -203,10 +203,10 @@ public:
 	}
 
 	// device info
-	const std::string getManufacturer() { hid_get_manufacturer_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
-	const std::string getProduct() { hid_get_product_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
-	const std::string getSerialNumber() { hid_get_serial_number_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
-	const std::string getIndexedString(const int i) { hid_get_indexed_string(m_handle, i, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
+	 std::string getManufacturer() { hid_get_manufacturer_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
+	 std::string getProduct() { hid_get_product_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
+	 std::string getSerialNumber() { hid_get_serial_number_string(m_handle, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
+	 std::string getIndexedString(const int i) { hid_get_indexed_string(m_handle, i, m_wstring, MAX_STR); std::wstring temp{ m_wstring }; return { temp.begin(), temp.end() }; }
 
 private:
 	// connection to glove and pipe
@@ -236,7 +236,7 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 	for (int i{ secAvg }; i > 0; i--) {
 		for (int l{}; l < inSecAvg; l++) {
 			//------Tracking
-			auto& buffer = glove.read();
+			const auto& buffer = glove.read();
 
 			// run the buffer to bit convert our data into the data struct
 			finT thumbTracking = glove.BitData(buffer.glove.thumb);
@@ -285,7 +285,7 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 	for (int i{secAvg}; i > 0; i--) {
 		for (int l{}; l < inSecAvg; l++) {
 			//------Tracking
-			auto& buffer = glove.read();
+			const auto& buffer = glove.read();
 
 			// run the buffer to bit convert our data into the data struct
 			finT thumbTracking = glove.BitData(buffer.glove.thumb);
@@ -351,7 +351,7 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 		for (int i{ secAvg }; i > 0; i--) {
 			for (int l{}; l < inSecAvg; l++) {
 				//------Tracking
-				auto& buffer = glove.read();
+				const auto& buffer = glove.read();
 
 				// run the buffer to bit convert our data into the data struct
 				finT thumbTracking = glove.BitData(buffer.glove.thumb);
@@ -394,7 +394,7 @@ unsigned int clamp(int value, int minT, int maxT) {unsigned int yeet = max(minT,
 void Tracking(whatIsGlove glove) {
 
 	//------Tracking
-	auto& buffer = glove.read();
+	const auto& buffer = glove.read();
 
 	// run the buffer to bit convert our data into the data struct
 	finT thumbTracking = glove.BitData(buffer.glove.thumb);
@@ -485,7 +485,7 @@ void Tracking(whatIsGlove glove) {
 	};
 }
 const int HapticConvert(int input) { int output = input / 40; return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard
-void Haptics(const OutputStructure ogod, whatIsGlove glove) {
+void Haptics(const OutputStructure &ogod, whatIsGlove glove) {
 
 	//--------When reading FFB Output Reports from the open pipe from Opengloves driver, Outputs are only triggered after sending input to the driver.
 
@@ -665,9 +665,21 @@ int main(int argc, char** argv)
 	if (!left.isValid() && !right.isValid())
 	{
 		DISPLAY("No gloves are connected!");
-		if (hid_error(NULL)) {
-			DISPLAY("REASON:" << hid_error(NULL))
+		if (hid_error(NULL)) { //Null calls the last non device specific error, meaning hid_open errors
+			DWORD error = *hid_error(NULL); // Replace with the actual error code
+			LPWSTR lpMsgBuf{};
+			FormatMessage(
+				FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+				NULL,
+				error,
+				MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+				lpMsgBuf,
+				0, NULL
+			);
+			// Now lpMsgBuf contains the error message
+			DISPLAY("REASON:" << lpMsgBuf <<" --RAW ERROR CODE:" << error)
 		}
+		
 		system("pause");
 		hid_exit();
 		return 1;
@@ -721,8 +733,6 @@ int main(int argc, char** argv)
 //This is the Spread, Flatten, and Fist Variable setup
 	char choice;
 	do {
-		
-		
 		std::cout << "Do you want to Begin the Calibration process? (Y/N): ";
 		std::cin >> choice;
 		if (choice == 'Y' || choice == 'y') {
