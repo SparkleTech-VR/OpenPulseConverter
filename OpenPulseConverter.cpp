@@ -134,7 +134,7 @@ public:
 		else {
 			OutputStructure trashzero{};
 			auto error = GetLastError();
-			DISPLAY("NO HAPTICS > BAD READ" << error)
+			DISPLAY("NO HAPTICS > BAD READ" <<" Error:" << error)
 			return trashzero;
 		}
 	};
@@ -424,9 +424,7 @@ void Tracking(whatIsGlove glove) {
 	unsigned int ringSplay =  clamp(ringTracking.splay,ringPimp, ringSpread);
 	unsigned int pinkySplay = clamp(pinkyTracking.splay,pinkyPimp,pinkySpread);
 
-	//test code to confirm we are getting the data we want
-	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.getPull() << ")"; printf("\n");
-	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.getSplay() << ")"; // CR CR;
+
 
 
 	//The data structs for our finger buffer data
@@ -464,7 +462,9 @@ void Tracking(whatIsGlove glove) {
 	std::array<std::array<float, 4>, 5> flexion;
 	splay = splay_buffer; //Semantics for readability -- no impact on performance
 	flexion = pull_buffer;
-
+	//test code to confirm we are getting the data we want
+	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.getPull() << ")" << "TrgValue:"<< flexion[1][0] << std::endl;
+	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.getSplay() << ")" << std::endl;
 	OpenGloveInputData ogid{};
 	//Write your Input data to ogid
 	ogid.flexion = flexion;
@@ -592,9 +592,9 @@ void Haptics(const OutputStructure &ogod, whatIsGlove glove) {
 
 	glove.write(HapticData);//Feel the VR beneath your finger tips!
 
-	//TODO: Write a sleepfor on the duration G variable followed by a write call with a second output report as above but with 0's for the vibrations
+	//TODONE: Write a sleepfor on the duration G variable followed by a write call with a second output report as above but with 0's for the vibrations
 
-	std::this_thread::sleep_for(std::chrono::milliseconds((int)duration * 1000));
+	std::this_thread::sleep_for(std::chrono::milliseconds((int)(duration * 1000)));
 
 	//Now to reset our default tracking as described in pulse basics-- https://www.bifrostvr.com/pulse/basics 
 	// THIS IS IMPORTANT --- By default endpoint 1 is set to 25 and endpoint 2 is set to 0
@@ -793,7 +793,7 @@ int main(int argc, char** argv)
 			}
 			};
 		 //Functions after the glove Data-------
-		std::this_thread::sleep_for(std::chrono::microseconds(1000000 / 67)); // 67 hz  <-- This is really cool
+		std::this_thread::sleep_for(std::chrono::microseconds(14925)); // 67 hz  <-- This is really cool
 
 	}
 	//Clean Up Data
