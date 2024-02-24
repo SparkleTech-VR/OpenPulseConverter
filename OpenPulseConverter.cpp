@@ -22,6 +22,7 @@
 #define LOG(x) std::cout << "[" << __FILE__ << " Line" << __LINE__ << "] " << x << std::endl;
 #define DISPLAY(x) std::cout << "OpenPulse Converter:"<< x << std::endl;
 #define MAX_STR 255
+#define ImpurityMagicNum 3
 #define debugPause system("pause")
 #define CR ;printf("\r")
 const int VENDOR_ID = 0x1915;
@@ -122,7 +123,7 @@ public:
 
 	//OpenGlovesDriver Functions
 	const auto& Feel() {
-		char buffer[sizeof(OutputStructure)]{};
+		char buffer[sizeof(OutputStructure)];
 		DWORD dwRead;
 		bool returnCheck = ReadFile(m_ogPipe, buffer, sizeof(OutputStructure), &dwRead, NULL);
 		if (returnCheck) {
@@ -265,11 +266,11 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 		pinkySpreadSum  += pinkySpread  /inSecAvg; 
 		DISPLAY(i << "...");
 	}
-	thumbSpread	= (thumbSpreadSum/ secAvg) / 3;
-	indexSpread	= (indexSpreadSum/ secAvg) / 3;
-	middleSpread= (middleSpreadSum/ secAvg) / 3;
-	ringSpread	= (ringSpreadSum/ secAvg) / 3;
-	pinkySpread = (pinkySpreadSum/ secAvg) / 3;
+	thumbSpread	= (thumbSpreadSum/ secAvg)  / ImpurityMagicNum;
+	indexSpread	= (indexSpreadSum/ secAvg)  / ImpurityMagicNum;
+	middleSpread= (middleSpreadSum/ secAvg) / ImpurityMagicNum;
+	ringSpread	= (ringSpreadSum/ secAvg)   / ImpurityMagicNum;
+	pinkySpread = (pinkySpreadSum/ secAvg)  / ImpurityMagicNum;
 	int pimpThumbSum{};//b*tch
 	int pimpIndexSum{};//b*tch
 	int pimpMiddleSum{};//b*tch
@@ -331,16 +332,16 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 		pimpPinkySum += pinkyPimp/inSecAvg;
 		DISPLAY(i << "...");
 	}
-	thumbDrag  = (flattenThumbSum /secAvg) / 3;
-	indexDrag  = (flattenIndexSum /secAvg) / 3;
-	middleDrag = (flattenMiddleSum/secAvg) / 3;
-	ringDrag   = (flattenRingSum  /secAvg) / 3;
-	pinkyDrag  = (flattenPinkySum /secAvg) / 3;
-	thumbPimp  = (pimpThumbSum/secAvg) / 3;
-	indexPimp  = (pimpIndexSum/secAvg) / 3;
-	middlePimp = (pimpMiddleSum/secAvg) / 3;
-	ringPimp   = (pimpRingSum/secAvg) / 3;
-	pinkyPimp  = (pimpPinkySum/secAvg) / 3;
+	thumbDrag  = (flattenThumbSum /secAvg) / ImpurityMagicNum;
+	indexDrag  = (flattenIndexSum /secAvg) / ImpurityMagicNum;
+	middleDrag = (flattenMiddleSum/secAvg) / ImpurityMagicNum;
+	ringDrag   = (flattenRingSum  /secAvg) / ImpurityMagicNum;
+	pinkyDrag  = (flattenPinkySum /secAvg) / ImpurityMagicNum;
+	thumbPimp  = (pimpThumbSum/secAvg)	   / ImpurityMagicNum;
+	indexPimp  = (pimpIndexSum/secAvg)	   / ImpurityMagicNum;
+	middlePimp = (pimpMiddleSum/secAvg)    / ImpurityMagicNum;
+	ringPimp   = (pimpRingSum/secAvg)	   / ImpurityMagicNum;
+	pinkyPimp  = (pimpPinkySum/secAvg)	   / ImpurityMagicNum;
 	DISPLAY("Please CURL your hand into a FIST comfortably...")
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		int thumbFistSum{};
@@ -380,11 +381,11 @@ const void runCalibration(whatIsGlove glove) {//Holy Pasta help me
 			pinkyFistSum += pinkyFist / inSecAvg;
 			DISPLAY(i << "...");
 		}
-		thumbFist = (thumbFistSum/ secAvg) / 3;
-		indexFist = (indexFistSum/ secAvg) / 3;
-		middleFist =(middleFistSum/ secAvg) / 3;
-		ringFist = (ringFistSum / secAvg) / 3;
-		pinkyFist = (pinkyFistSum/ secAvg)/3;
+		thumbFist = (thumbFistSum/ secAvg)	/ ImpurityMagicNum;
+		indexFist = (indexFistSum/ secAvg)	/ ImpurityMagicNum;
+		middleFist =(middleFistSum/ secAvg)	/ ImpurityMagicNum;
+		ringFist = (ringFistSum / secAvg)	/ ImpurityMagicNum;
+		pinkyFist = (pinkyFistSum/ secAvg)	/ ImpurityMagicNum;
 
 		DISPLAY("Index Drag:" << indexDrag << "Index Curl:" << indexFist << "Index Spread:" << indexSpread << "Index Pimp:" << indexPimp);
 		DISPLAY("Please confirm your index finger min and max seem normal. Pulse measures 0 when the finger string is fully pulled out of the module, and measures 10K when fully retracted into the module");
@@ -463,18 +464,19 @@ void Tracking(whatIsGlove glove) {
 	splay = splay_buffer; //Semantics for readability -- no impact on performance
 	flexion = pull_buffer;
 	//test code to confirm we are getting the data we want
-	std::cout << "Pull: " << indexPull << " (" << buffer.glove.index.getPull() << ")" << "TrgValue:"<< flexion[1][0] << std::endl;
-	std::cout << "Splay: " << indexSplay << " (" << buffer.glove.index.getSplay() << ")" << std::endl;
+	std::cout << "Index Pull: " << indexPull << " (" << buffer.glove.index.getPull() << ")" << "TrgValue:"<< flexion[1][0] << std::endl;
+	std::cout << "Index Splay: " << indexSplay << " (" << buffer.glove.index.getSplay() << ")" << std::endl;
 	OpenGloveInputData ogid{};
 	//Write your Input data to ogid
 	ogid.flexion = flexion;
 	ogid.splay = splay;
 	//buttons to be emulated, menu, joyx,joyY, maybe others as I care in games
-	ogid.grab = ((ogid.flexion[3][0]) > 0.75f) && ((ogid.flexion[4][0]) > 0.75f);//Possible Grab
-	ogid.trgButton = ((ogid.flexion[1][0]) > 0.75f); //Possible Trg, might empty mags accidently
+	ogid.grab = ((ogid.flexion[3][0]) > 0.75f) || ((ogid.flexion[4][0]) > 0.75f);//Grab
+	ogid.trgButton = ((ogid.flexion[1][0]) > 0.75f); //Trg, might empty mags accidently
 	ogid.trgValue = (ogid.flexion[1][0]); //example code for rest of buttons
-	ogid.aButton = ((ogid.flexion[0][0])>0.75f);
-	ogid.pinch = ((ogid.flexion[0][0]) > 0.90f);
+	ogid.aButton = (((ogid.flexion[0][0])>0.75f) && (ogid.flexion[2][0]<0.15));
+	ogid.joyButton = ((ogid.flexion[0][0]) > 0.90f);
+	if(ogid.flexion[2][0]>0.9){ ogid.joyY = ogid.flexion[2][0] * -1; }//Crouch function
 	
 	glove.Touch(ogid);
 	LOG("wrote");
@@ -793,7 +795,7 @@ int main(int argc, char** argv)
 			}
 			};
 		 //Functions after the glove Data-------
-		std::this_thread::sleep_for(std::chrono::microseconds(14925)); // 67 hz  <-- This is really cool
+		std::this_thread::sleep_for(std::chrono::microseconds((1000000/67)/ ImpurityMagicNum)); // 67 hz  <-- This is really cool
 
 	}
 	//Clean Up Data
