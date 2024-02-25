@@ -123,11 +123,11 @@ public:
 
 	//OpenGlovesDriver Functions
 	const auto& Feel() {
-		char buffer[sizeof(OutputStructure)];
+		byte buffer[sizeof(OutputStructure)]{};
 		DWORD dwRead;
-		bool returnCheck = ReadFile(m_ogPipe, buffer, sizeof(OutputStructure), &dwRead, NULL);
+		bool returnCheck = ReadFile(m_ogPipe, (LPVOID)buffer, sizeof(OutputStructure), &dwRead, NULL);
 		if (returnCheck) {
-			std::array<char, sizeof(OutputStructure)> handoff{};
+			std::array<byte, sizeof(OutputStructure)> handoff{};
 			std::copy(std::begin(buffer), std::end(buffer), std::begin(handoff));
 			OutputStructure OutData = reinterpret_cast<OutputStructure&>(handoff);
 			return OutData;
@@ -681,10 +681,30 @@ int main(int argc, char** argv)
 			// Now lpMsgBuf contains the error message
 			DISPLAY("REASON:" << lpMsgBuf <<" --RAW ERROR CODE:" << error)
 		}
-		
-		system("pause");
-		hid_exit();
-		return 1;
+		char choice;
+		std::cout << "Do you want to Attempt to force open the glove handle? (Y/N): ";
+		std::cin >> choice;
+		if (choice == 'Y' || choice == 'y') {
+			// init gloves
+			whatIsGlove left{ VENDOR_ID, LEFT_GLOVE_PRODUCT_ID };
+			whatIsGlove right{ VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID };
+			auto leftlist = hid_enumerate(VENDOR_ID, LEFT_GLOVE_PRODUCT_ID);
+			auto rightlist = hid_enumerate(VENDOR_ID, RIGHT_GLOVE_PRODUCT_ID);
+			DISPLAY("LEFT LISTED:"<<leftlist<<"RIGHT LISTED:"<<rightlist)
+		}
+		else if (choice == 'N' || choice == 'n') {
+			std::cout << "Stopping the program." << std::endl;
+			system("pause");
+			hid_exit();
+			return 1;  // Exit the loop
+		}
+		else {
+			std::cout << "Invalid input. Please enter Y or N." << std::endl;
+			std::cout << "Stopping the program." << std::endl;
+			system("pause");
+			hid_exit();
+			return 1;  // Exit the loop
+		}
 	}
 
 	if (left.isValid())
@@ -777,23 +797,19 @@ int main(int argc, char** argv)
 			if (left.pipeIsValid()) { //
 				// Force Feedback Haptics----------------------
 				ogodL = left.Feel();
-				if (&ogodL) {
-					Haptics(ogodL, left);
-				};
+				Haptics(ogodL, left);
 			}
 		}
 		if (right.isValid())
 		{
 			//Tracking---------------
 			Tracking(right);
-			if (right.pipeIsValid()) { //
+			
 				// Force Feedback Haptics----------------------
 				ogodR = right.Feel();
-				if (&ogodR) {
-					Haptics(ogodR, right);
-				};
-			}
-			};
+				Haptics(ogodR, right);
+			
+		};
 		 //Functions after the glove Data-------
 		std::this_thread::sleep_for(std::chrono::microseconds((1000000/67)/ ImpurityMagicNum)); // 67 hz  <-- This is really cool
 
