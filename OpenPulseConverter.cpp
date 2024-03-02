@@ -88,19 +88,22 @@ public:
 	const auto& Feel() {
 		byte buffer[sizeof(OutputStructure)]{};
 		DWORD dwRead;
-		bool returnCheck = ReadFile(m_ogPipe, (LPVOID)&buffer, sizeof(OutputStructure), &dwRead, NULL);
+		DWORD dwBytesLeft;
+		bool returnCheck = PeekNamedPipe(m_ogPipe, (LPVOID)&buffer, sizeof(OutputStructure), &dwRead, &dwRead, &dwBytesLeft);
 		if (returnCheck) {
 			std::array<byte, sizeof(OutputStructure)> handoff{};
 			std::copy(std::begin(buffer), std::end(buffer), std::begin(handoff));
 			OutputStructure OutData = reinterpret_cast<OutputStructure&>(handoff);
+			DISPLAY("HAPTIC DATA:" << OutData.B)
 			return OutData;
 		}
 		else {
 			OutputStructure trashzero{};
 			auto error = GetLastError();
-			DISPLAY("NO HAPTICS > BAD READ" <<" Error:" << error)
-			return trashzero;
+			DISPLAY("NO HAPTICS > BAD READ" << " Error:" << error)
+				return trashzero;
 		}
+		
 	};
 	template <typename T>
 	const bool Touch(const T& TrackingData) {
@@ -483,7 +486,7 @@ void Tracking(whatIsGlove glove) {
 		debugPause;
 	};
 }
-const int HapticConvert(int input) { int output = std::abs((input / 40)-25); return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard(The std::abs and subtraction of the final range gives an inversion of the result in the range scale)
+const int HapticConvert(int input) { int output = (input / 40); return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard(The std::abs and subtraction of the final range gives an inversion of the result in the range scale---std::abs((input / 40)-25))
 void Haptics(const OutputStructure &ogod, whatIsGlove glove) {
 
 	//--------When reading FFB Output Reports from the open pipe from Opengloves driver, Outputs are only triggered after sending input to the driver.
