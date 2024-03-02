@@ -84,8 +84,31 @@ public:
 	};
 	const void write(unsigned char* HapticData) { hid_write(m_handle, HapticData, 21); };
 
-	//Run the pipe open with a for loop internally
+	//OpenGlovesDriver Functions
+	const auto& Feel() {
+		byte buffer[sizeof(OutputStructure)]{};
+		DWORD dwRead;
+		bool returnCheck = ReadFile(m_ogPipe, (LPVOID)&buffer, sizeof(OutputStructure), &dwRead, NULL);
+		if (returnCheck) {
+			std::array<byte, sizeof(OutputStructure)> handoff{};
+			std::copy(std::begin(buffer), std::end(buffer), std::begin(handoff));
+			OutputStructure OutData = reinterpret_cast<OutputStructure&>(handoff);
+			return OutData;
+		}
+		else {
+			OutputStructure trashzero{};
+			auto error = GetLastError();
+			DISPLAY("NO HAPTICS > BAD READ" <<" Error:" << error)
+			return trashzero;
+		}
+	};
+	template <typename T>
+	const bool Touch(const T& TrackingData) {
+		DWORD dwWritten{};
+		return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL);
+	};
 
+	const bool pipeIsValid() const { return m_ogPipe; };
 	void openPipe(const std::string& pipeName) {
 
 		for (int i = 0; i < 10; i++) {
@@ -120,32 +143,6 @@ public:
 		}
 
 	};
-
-	//OpenGlovesDriver Functions
-	const auto& Feel() {
-		byte buffer[sizeof(OutputStructure)]{};
-		DWORD dwRead;
-		bool returnCheck = ReadFile(m_ogPipe, (LPVOID)buffer, sizeof(OutputStructure), &dwRead, NULL);
-		if (returnCheck) {
-			std::array<byte, sizeof(OutputStructure)> handoff{};
-			std::copy(std::begin(buffer), std::end(buffer), std::begin(handoff));
-			OutputStructure OutData = reinterpret_cast<OutputStructure&>(handoff);
-			return OutData;
-		}
-		else {
-			OutputStructure trashzero{};
-			auto error = GetLastError();
-			DISPLAY("NO HAPTICS > BAD READ" <<" Error:" << error)
-			return trashzero;
-		}
-	};
-	template <typename T>
-	const bool Touch(const T& TrackingData) {
-		DWORD dwWritten{};
-		return WriteFile(m_ogPipe, (LPCVOID)&TrackingData, sizeof(TrackingData), &dwWritten, NULL);
-	};
-	const bool pipeIsValid() const { return m_ogPipe; };
-
 	void closePipe() {
 		CloseHandle(m_ogPipe);
 	}
@@ -486,7 +483,7 @@ void Tracking(whatIsGlove glove) {
 		debugPause;
 	};
 }
-const int HapticConvert(int input) { int output = input / 40; return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard
+const int HapticConvert(int input) { int output = std::abs((input / 40)-25); return output; } // set over 40 this reduces the output haptics to a Pulse reasonable standard(The std::abs and subtraction of the final range gives an inversion of the result in the range scale)
 void Haptics(const OutputStructure &ogod, whatIsGlove glove) {
 
 	//--------When reading FFB Output Reports from the open pipe from Opengloves driver, Outputs are only triggered after sending input to the driver.
@@ -804,11 +801,11 @@ int main(int argc, char** argv)
 		{
 			//Tracking---------------
 			Tracking(right);
-			
+			if (right.pipeIsValid()) { //
 				// Force Feedback Haptics----------------------
 				ogodR = right.Feel();
 				Haptics(ogodR, right);
-			
+			}
 		};
 		 //Functions after the glove Data-------
 		std::this_thread::sleep_for(std::chrono::microseconds((1000000/67)/ ImpurityMagicNum)); // 67 hz  <-- This is really cool
