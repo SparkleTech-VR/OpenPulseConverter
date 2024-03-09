@@ -638,7 +638,6 @@ void Haptics(const OutputStructure &ogod, whatIsGlove glove) {
 	HapticData = report;// Just semantics for readability, compiler will ignore this -- no impact on performance
 
 	glove.write(HapticData);//GLOVE IS RESET FOR TRACKING
-
 };
 
 /*
@@ -797,7 +796,8 @@ int main(int argc, char** argv)
 			if (left.pipeIsValid()) { //
 				// Force Feedback Haptics----------------------
 				ogodL = left.Feel();
-				Haptics(ogodL, left);
+				std::thread leftT(Haptics,ogodL, left);
+				leftT.detach();
 			}
 		}
 		if (right.isValid())
@@ -807,7 +807,8 @@ int main(int argc, char** argv)
 			if (right.pipeIsValid()) { //
 				// Force Feedback Haptics----------------------
 				ogodR = right.Feel();
-				Haptics(ogodR, right);
+				std::thread rightT(Haptics,ogodR, right);
+				rightT.detach();
 			}
 		};
 		 //Functions after the glove Data-------
